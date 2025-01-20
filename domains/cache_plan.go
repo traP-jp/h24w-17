@@ -5,16 +5,16 @@ type CachePlan struct {
 }
 
 type CachePlanQuery struct {
-	*CachePlanQueryBase
-	Select *CachePlanSelectQuery
-	Update *CachePlanUpdateQuery
-	Delete *CachePlanDeleteQuery
-	Insert *CachePlanInsertQuery
+	*CachePlanQueryBase `yaml:",inline"`
+	Select              *CachePlanSelectQuery `yaml:",inline"`
+	Update              *CachePlanUpdateQuery `yaml:",inline"`
+	Delete              *CachePlanDeleteQuery
+	Insert              *CachePlanInsertQuery
 }
 
 type CachePlanQueryBase struct {
-	Type  CachePlanQueryType `yaml:"type"`
 	Query string             `yaml:"query"`
+	Type  CachePlanQueryType `yaml:"type"`
 }
 
 type CachePlanQueryType string

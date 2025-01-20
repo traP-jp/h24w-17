@@ -46,6 +46,8 @@ func (c *CachePlanQuery) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
+var _ yaml.Unmarshaler = &CachePlanQuery{}
+
 func LoadCachePlan(reader io.Reader) (*CachePlan, error) {
 	data, err := io.ReadAll(reader)
 	if err != nil {
@@ -61,15 +63,32 @@ func LoadCachePlan(reader io.Reader) (*CachePlan, error) {
 	return &cachePlan, nil
 }
 
-func SaveCachePlan(writer *io.Writer, cachePlan *CachePlan) error {
-	data, err := yaml.Marshal(cachePlan)
-	if err != nil {
-		return fmt.Errorf("failed to marshal cache plan: %w", err)
+func (c *CachePlanQuery) MarshalYAML() (interface{}, error) {
+	var query interface{}
+	switch c.Type {
+	case CachePlanQueryType_SELECT:
+		query = c.Select
+	case CachePlanQueryType_UPDATE:
+		query = c.Update
+	case CachePlanQueryType_DELETE:
+		query = c.Delete
+	case CachePlanQueryType_INSERT:
+		query = c.Insert
+	default:
+		return nil, fmt.Errorf("unknown cache plan query type: %s", c.Type)
 	}
 
-	_, err = (*writer).Write(data)
-	if err != nil {
-		return fmt.Errorf("failed to write cache plan: %w", err)
+	return yaml.Marshal(query)
+}
+
+var _ yaml.Marshaler = &CachePlanQuery{}
+
+func SaveCachePlan(writer io.Writer, cachePlan *CachePlan) error {
+	encoder := yaml.NewEncoder(writer)
+	encoder.SetIndent(2)
+
+	if err := encoder.Encode(cachePlan); err != nil {
+		return fmt.Errorf("failed to marshal cache plan: %w", err)
 	}
 
 	return nil
