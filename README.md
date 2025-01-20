@@ -13,7 +13,7 @@ type Query = SelectQuery | UpdateQuery | DeleteQuery | InsertQuery
 
 type Condition = {
   column: string
-  value?: string
+  value?: number | string
 }
 
 type SelectQuery = CachableSelectQuery | NonCachableSelectQuery

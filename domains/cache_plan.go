@@ -27,8 +27,8 @@ const (
 )
 
 type CachePlanCondition struct {
-	Column string `yaml:"column"`
-	Value  string `yaml:"value,omitempty"`
+	Column string      `yaml:"column"`
+	Value  interface{} `yaml:"value,omitempty"`
 }
 
 type CachePlanOrder struct {
