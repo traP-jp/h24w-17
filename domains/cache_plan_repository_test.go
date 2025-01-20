@@ -57,7 +57,7 @@ queries:
         value: payment_gateway_url`
 
 var parsed = &CachePlan{
-	Queries: []CachePlanQuery{
+	Queries: []*CachePlanQuery{
 		{
 			CachePlanQueryBase: &CachePlanQueryBase{
 				Type:  CachePlanQueryType_SELECT,

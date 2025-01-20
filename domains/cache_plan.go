@@ -1,7 +1,7 @@
 package domains
 
 type CachePlan struct {
-	Queries []CachePlanQuery `yaml:"queries"`
+	Queries []*CachePlanQuery `yaml:"queries"`
 }
 
 type CachePlanQuery struct {
