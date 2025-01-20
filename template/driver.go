@@ -8,7 +8,11 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/h24w-17/domains"
 )
+
+// TODO: generate
+var queryMap map[string]domains.CachePlanQuery
 
 func init() {
 	sql.Register("mysql+cache", CacheDriver{})
@@ -37,8 +41,13 @@ type CacheConn struct {
 }
 
 func (c *CacheConn) Prepare(query string) (driver.Stmt, error) {
-	cachable := true // TODO: check if the query is cacheable from intermediate format
-	if !cachable {
+	// TODO: normalize query
+	queryInfo, ok := queryMap[query]
+	if !ok {
+		return c.inner.Prepare(query)
+	}
+
+	if queryInfo.Type == domains.CachePlanQueryType_SELECT && !queryInfo.Select.Cache {
 		return c.inner.Prepare(query)
 	}
 
@@ -46,7 +55,11 @@ func (c *CacheConn) Prepare(query string) (driver.Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &CustomCacheStatement{inner: innerStmt, query: query}, nil
+	return &CustomCacheStatement{
+		inner:     innerStmt,
+		query:     query,
+		queryInfo: queryInfo,
+	}, nil
 }
 
 func (c *CacheConn) Close() error {
@@ -58,10 +71,10 @@ func (c *CacheConn) Begin() (driver.Tx, error) {
 }
 
 func (c *CacheConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
-	if c, ok := c.inner.(driver.ConnBeginTx); ok {
-		return c.BeginTx(ctx, opts)
+	if i, ok := c.inner.(driver.ConnBeginTx); ok {
+		return i.BeginTx(ctx, opts)
 	}
-	return c.Begin()
+	return c.inner.Begin()
 }
 
 type CacheRows struct {

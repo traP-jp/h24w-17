@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
+	"github.com/h24w-17/domains"
 	"github.com/motoki317/sc"
 )
 
@@ -15,12 +16,14 @@ var (
 
 // TODO: generate
 // NOTE: no write happens to this map, so it's safe to use in concurrent environment
-var caches = map[string]sc.Cache[string, driver.Rows]{}
+var caches map[string]sc.Cache[string, driver.Rows]
+
+var cacheByTable map[string][]sc.Cache[string, driver.Rows]
 
 type CustomCacheStatement struct {
-	inner driver.Stmt
-	query string
-	// TODO: add intermediate format
+	inner     driver.Stmt
+	query     string
+	queryInfo domains.CachePlanQuery
 }
 
 func (s *CustomCacheStatement) Close() error {
@@ -32,6 +35,39 @@ func (s *CustomCacheStatement) NumInput() int {
 }
 
 func (s *CustomCacheStatement) Exec(args []driver.Value) (driver.Result, error) {
+	switch s.queryInfo.Type {
+	case domains.CachePlanQueryType_INSERT:
+		return s.execInsert(args)
+	case domains.CachePlanQueryType_UPDATE:
+		return s.execUpdate(args)
+	case domains.CachePlanQueryType_DELETE:
+		return s.execDelete(args)
+	}
+	return s.inner.Exec(args)
+}
+
+func (s *CustomCacheStatement) execInsert(args []driver.Value) (driver.Result, error) {
+	table := s.queryInfo.Insert.Table
+	for _, cache := range cacheByTable[table] {
+		cache.Purge()
+	}
+	return s.inner.Exec(args)
+}
+
+func (s *CustomCacheStatement) execUpdate(args []driver.Value) (driver.Result, error) {
+	// TODO: purge only necessary cache
+	table := s.queryInfo.Update.Table
+	for _, cache := range cacheByTable[table] {
+		cache.Purge()
+	}
+	return s.inner.Exec(args)
+}
+
+func (s *CustomCacheStatement) execDelete(args []driver.Value) (driver.Result, error) {
+	table := s.queryInfo.Delete.Table
+	for _, cache := range cacheByTable[table] {
+		cache.Purge()
+	}
 	return s.inner.Exec(args)
 }
 
