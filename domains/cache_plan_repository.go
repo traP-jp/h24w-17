@@ -17,28 +17,24 @@ func (c *CachePlanQuery) UnmarshalYAML(value *yaml.Node) error {
 	switch base.Type {
 	case CachePlanQueryType_SELECT:
 		var query CachePlanSelectQuery
-		query.CachePlanQueryBase = base
 		if err := value.Decode(&query); err != nil {
 			return fmt.Errorf("failed to decode cache plan select query: %w", err)
 		}
 		c.Select = &query
 	case CachePlanQueryType_UPDATE:
 		var query CachePlanUpdateQuery
-		query.CachePlanQueryBase = base
 		if err := value.Decode(&query); err != nil {
 			return fmt.Errorf("failed to decode cache plan update query: %w", err)
 		}
 		c.Update = &query
 	case CachePlanQueryType_DELETE:
 		var query CachePlanDeleteQuery
-		query.CachePlanQueryBase = base
 		if err := value.Decode(&query); err != nil {
 			return fmt.Errorf("failed to decode cache plan delete query: %w", err)
 		}
 		c.Delete = &query
 	case CachePlanQueryType_INSERT:
 		var query CachePlanInsertQuery
-		query.CachePlanQueryBase = base
 		if err := value.Decode(&query); err != nil {
 			return fmt.Errorf("failed to decode cache plan insert query: %w", err)
 		}
