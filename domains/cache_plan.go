@@ -5,11 +5,11 @@ type CachePlan struct {
 }
 
 type CachePlanQuery struct {
-	*CachePlanQueryBase `yaml:",inline"`
-	Select              *CachePlanSelectQuery `yaml:",inline"`
-	Update              *CachePlanUpdateQuery `yaml:",inline"`
-	Delete              *CachePlanDeleteQuery
-	Insert              *CachePlanInsertQuery
+	*CachePlanQueryBase
+	Select *CachePlanSelectQuery
+	Update *CachePlanUpdateQuery
+	Delete *CachePlanDeleteQuery
+	Insert *CachePlanInsertQuery
 }
 
 type CachePlanQueryBase struct {
@@ -44,9 +44,9 @@ const (
 )
 
 type CachePlanSelectQuery struct {
-	Table      string               `yaml:"table"`
+	Table      string               `yaml:"table,omitempty"`
 	Cache      bool                 `yaml:"cache"`
-	Targets    []string             `yaml:"targets"`
+	Targets    []string             `yaml:"targets,omitempty"`
 	Conditions []CachePlanCondition `yaml:"conditions,omitempty"`
 	Orders     []CachePlanOrder     `yaml:"orders,omitempty"`
 }

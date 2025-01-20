@@ -67,18 +67,42 @@ func (c *CachePlanQuery) MarshalYAML() (interface{}, error) {
 	var query interface{}
 	switch c.Type {
 	case CachePlanQueryType_SELECT:
-		query = c.Select
+		query = struct {
+			*CachePlanQueryBase   `yaml:",inline"`
+			*CachePlanSelectQuery `yaml:",inline"`
+		}{
+			c.CachePlanQueryBase,
+			c.Select,
+		}
 	case CachePlanQueryType_UPDATE:
-		query = c.Update
+		query = struct {
+			*CachePlanQueryBase   `yaml:",inline"`
+			*CachePlanUpdateQuery `yaml:",inline"`
+		}{
+			c.CachePlanQueryBase,
+			c.Update,
+		}
 	case CachePlanQueryType_DELETE:
-		query = c.Delete
+		query = struct {
+			*CachePlanQueryBase   `yaml:",inline"`
+			*CachePlanDeleteQuery `yaml:",inline"`
+		}{
+			c.CachePlanQueryBase,
+			c.Delete,
+		}
 	case CachePlanQueryType_INSERT:
-		query = c.Insert
+		query = struct {
+			*CachePlanQueryBase   `yaml:",inline"`
+			*CachePlanInsertQuery `yaml:",inline"`
+		}{
+			c.CachePlanQueryBase,
+			c.Insert,
+		}
 	default:
 		return nil, fmt.Errorf("unknown cache plan query type: %s", c.Type)
 	}
 
-	return yaml.Marshal(query)
+	return query, nil
 }
 
 var _ yaml.Marshaler = &CachePlanQuery{}

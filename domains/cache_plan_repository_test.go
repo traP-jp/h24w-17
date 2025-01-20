@@ -1,18 +1,18 @@
 package domains
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-var formatted = `
-queries:
+var formatted = `queries:
   - query: SELECT * FROM livecomments WHERE livestream_id = ? ORDER BY created_at DESC
     type: select
-    cache: true
     table: livecomments
+    cache: true
     targets:
       - id
       - user_id
@@ -23,21 +23,22 @@ queries:
     conditions:
       - column: livestream_id
     orders:
-    - column: created_at
-      order: desc
+      - column: created_at
+        order: desc
   - query: SELECT r.emoji_name FROM users u INNER JOIN livestreams l ON l.user_id = u.id INNER JOIN reactions r ON r.livestream_id = l.id WHERE u.name = ? GROUP BY emoji_name ORDER BY COUNT(*) DESC, emoji_name DESC LIMIT ?
     type: select
     cache: false
   - query: SELECT COUNT(*) FROM livestream_viewers_history WHERE livestream_id = ?
     type: select
-    cache: true
     table: livestream_viewers_history
-    targets: []
+    cache: true
+    targets:
+      - COUNT()
     conditions:
       - column: livestream_id
   - query: DELETE FROM livecomments WHERE id = ? AND livestream_id = ? AND (SELECT COUNT(*) FROM (SELECT ? AS text) AS texts INNER JOIN (SELECT CONCAT('%', ?, '%') AS pattern) AS patterns ON texts.text LIKE patterns.pattern) >= 1;
-    table: livecomments
     type: delete
+    table: livecomments
     conditions:
       - column: id
       - column: livestream_id
@@ -54,7 +55,8 @@ queries:
       - value
     conditions:
       - column: name
-        value: payment_gateway_url`
+        value: payment_gateway_url
+`
 
 var parsed = &CachePlan{
 	Queries: []*CachePlanQuery{
@@ -88,7 +90,7 @@ var parsed = &CachePlan{
 			Select: &CachePlanSelectQuery{
 				Table:      "livestream_viewers_history",
 				Cache:      true,
-				Targets:    []string{},
+				Targets:    []string{"COUNT()"},
 				Conditions: []CachePlanCondition{{Column: "livestream_id"}},
 			},
 		},
@@ -138,5 +140,6 @@ func TestSaveCachePlan(t *testing.T) {
 	writer := &strings.Builder{}
 	err := SaveCachePlan(writer, parsed)
 	assert.NoError(t, err)
+	fmt.Printf("formatted:\n%s\n", writer.String())
 	assert.Equal(t, formatted, writer.String())
 }
