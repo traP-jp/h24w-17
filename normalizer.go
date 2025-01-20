@@ -72,7 +72,6 @@ func NormalizeQuery(query string) (NormalizedQuery, error) {
 	// Apply patterns to normalize the query and collect conditions
 	for _, pattern := range patterns {
 		matches := pattern.regex.FindAllStringSubmatch(normalizedQuery, -1)
-		fmt.Printf("matches: %v\n", matches)
 		for _, match := range matches {
 			normalizedQuery = pattern.regex.ReplaceAllString(normalizedQuery, pattern.replacement)
 			if pattern.condition != nil {

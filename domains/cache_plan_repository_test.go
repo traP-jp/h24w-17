@@ -1,7 +1,6 @@
 package domains
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -140,6 +139,5 @@ func TestSaveCachePlan(t *testing.T) {
 	writer := &strings.Builder{}
 	err := SaveCachePlan(writer, parsed)
 	assert.NoError(t, err)
-	fmt.Printf("formatted:\n%s\n", writer.String())
 	assert.Equal(t, formatted, writer.String())
 }
