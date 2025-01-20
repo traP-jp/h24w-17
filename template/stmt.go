@@ -3,6 +3,7 @@ package template
 import (
 	"context"
 	"database/sql/driver"
+	"fmt"
 
 	"github.com/motoki317/sc"
 )
@@ -41,14 +42,14 @@ func (s *CustomCacheStatement) Query(args []driver.Value) (driver.Rows, error) {
 }
 
 func createCacheKey(query string, args []driver.Value) string {
-	// TODO: implement
-	_ = query
-	_ = args
-	return "TODO"
+	key := query
+	for _, arg := range args {
+		key += fmt.Sprintf(":%v", arg)
+	}
+	return key
 }
 
 func cacheName(query string) string {
-	// TODO: implement
 	return query
 }
 
