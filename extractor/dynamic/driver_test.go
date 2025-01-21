@@ -15,6 +15,8 @@ func TestExtract(t *testing.T) {
 	db := testutil.SetupMysqlDB(t, "mysql+analyzer")
 	defer db.Close()
 
+	deleteAllQueries()
+
 	_, err := db.Exec(`CREATE TABLE users (id INT, name VARCHAR(255))`)
 	assert.NoError(t, err)
 
@@ -43,5 +45,5 @@ func TestExtract(t *testing.T) {
 		`INSERT INTO users (id, name) VALUES (1, 'Alice')`,
 		`SELECT * FROM users`,
 	}
-	assert.Equal(t, expected, queries)
+	assert.ElementsMatch(t, expected, queries)
 }

@@ -38,13 +38,36 @@ type AnalyzerConn struct {
 	inner driver.Conn
 }
 
-func (c *AnalyzerConn) Prepare(query string) (driver.Stmt, error) {
+func processQuery(query string) error {
+	fmt.Printf("Processing query: %s\n", query)
 	normalized, err := normalizer.NormalizeQuery(query)
 	if err != nil {
 		fmt.Printf("[WARN] failed to normalize query: %v\n", err)
-		return c.inner.Prepare(query)
+		return err
 	}
 	addQuery(normalized.Query)
+	return nil
+}
+
+func (c *AnalyzerConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	i, ok := c.inner.(driver.ExecerContext)
+	if !ok {
+		return nil, driver.ErrSkip
+	}
+	processQuery(query)
+	return i.ExecContext(ctx, query, args)
+}
+
+func (c *AnalyzerConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	i, ok := c.inner.(driver.QueryerContext)
+	if !ok {
+		return nil, driver.ErrSkip
+	}
+	processQuery(query)
+	return i.QueryContext(ctx, query, args)
+}
+
+func (c *AnalyzerConn) Prepare(query string) (driver.Stmt, error) {
 	return c.inner.Prepare(query)
 }
 
@@ -64,3 +87,5 @@ func (c *AnalyzerConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driv
 }
 
 var _ driver.Conn = &AnalyzerConn{}
+var _ driver.QueryerContext = &AnalyzerConn{}
+var _ driver.ExecerContext = &AnalyzerConn{}
