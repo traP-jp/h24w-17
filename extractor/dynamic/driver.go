@@ -39,7 +39,6 @@ type AnalyzerConn struct {
 }
 
 func processQuery(query string) error {
-	fmt.Printf("Processing query: %s\n", query)
 	normalized, err := normalizer.NormalizeQuery(query)
 	if err != nil {
 		fmt.Printf("[WARN] failed to normalize query: %v\n", err)
