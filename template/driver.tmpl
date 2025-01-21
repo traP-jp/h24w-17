@@ -1,4 +1,4 @@
-package template
+package {{ .PackageName }}
 
 import (
 	"context"
@@ -9,14 +9,13 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
-	"github.com/motoki317/sc"
 	"github.com/traP-jp/h24w-17/domains"
+	"github.com/motoki317/sc"
 )
 
 var queryMap = make(map[string]domains.CachePlanQuery)
 
-// TODO: generate
-const cachePlanRaw = ``
+const cachePlanRaw = `{{ .CachePlanRaw }}`
 
 func init() {
 	sql.Register("mysql+cache", CacheDriver{})
@@ -44,6 +43,7 @@ func init() {
 		cacheByTable[cache.info.Table] = append(cacheByTable[cache.info.Table], cache.cache)
 	}
 }
+
 
 type CacheDriver struct{}
 
