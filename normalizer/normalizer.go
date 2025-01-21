@@ -1,4 +1,4 @@
-package h24w17
+package normalizer
 
 import (
 	"errors"
