@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"math/rand/v2"
-	"os"
 	"testing"
 	"time"
 
@@ -35,17 +34,17 @@ func InitialSetupDB(m *testing.M) {
 	m.Run()
 }
 
-func SetupMysqlDB(t *testing.T) *sql.DB {
+func SetupMysqlDB(t *testing.T, driver string) *sql.DB {
 	t.Helper()
 
 	ctx := context.Background()
 
 	dbName := randomDBName()
-	if err := createDatabase(dbName); err != nil {
+	if err := createDatabase(dbName, driver); err != nil {
 		t.Fatal(err)
 	}
 	connection := mysqlContainer.MustConnectionString(ctx, "parseTime=true")
-	db, err := sql.Open("mysql", connection)
+	db, err := sql.Open(driver, connection)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,9 +55,9 @@ func SetupMysqlDB(t *testing.T) *sql.DB {
 	return db
 }
 
-func createDatabase(name string) error {
+func createDatabase(name string, driver string) error {
 	connection := mysqlContainer.MustConnectionString(context.Background(), "multiStatements=true")
-	db, err := sql.Open("mysql", connection)
+	db, err := sql.Open(driver, connection)
 	if err != nil {
 		return err
 	}
@@ -68,16 +67,11 @@ func createDatabase(name string) error {
 	if err != nil {
 		return err
 	}
-	schema, err := os.ReadFile("testdata/schema.sql")
-	if err != nil {
-		return err
-	}
-
 	if _, err := db.Exec("USE " + name); err != nil {
 		return err
 	}
-	_, err = db.Exec(string(schema))
-	return err
+
+	return nil
 }
 
 func randomDBName() string {

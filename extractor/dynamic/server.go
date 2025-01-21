@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-func init() {
+func StartServer() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		res := ""
 		queries := getQueries()
@@ -21,5 +21,8 @@ func init() {
 	if port == "" {
 		port = "39393"
 	}
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+
+	go func() {
+		log.Fatal(http.ListenAndServe(":"+port, nil))
+	}()
 }

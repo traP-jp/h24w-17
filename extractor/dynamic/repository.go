@@ -2,6 +2,10 @@ package dynamic_extractor
 
 var queries = map[string]struct{}{}
 
+func deleteAllQueries() {
+	queries = make(map[string]struct{})
+}
+
 func addQuery(query string) {
 	queries[query] = struct{}{}
 }
