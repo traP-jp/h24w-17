@@ -14,13 +14,22 @@ TODO
 
 ```go
 import (
-  _ "github.com/traP-jp/h24w-17/extractor/dynamic"
+  dynamic_extractor "github.com/traP-jp/h24w-17/extractor/dynamic"
 )
 ```
 
-2. replace driver `mysql` with `mysql+analyzer`
-3. running your application
-4. access `http://localhost:39393` and get the query list
+2. add the code to start server
+
+```go
+func main() {
+  dynamic_extractor.StartServer()
+  // ...
+}
+```
+
+3. replace driver `mysql` with `mysql+analyzer`
+4. running your application
+5. access `http://localhost:39393` and get the query list
 
 ## Cache Plan
 
