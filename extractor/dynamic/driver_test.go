@@ -1,4 +1,4 @@
-package template
+package dynamic_extractor
 
 import (
 	"context"
