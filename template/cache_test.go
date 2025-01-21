@@ -10,6 +10,10 @@ import (
 	"github.com/traP-jp/h24w-17/testutil"
 )
 
+func TestMain(m *testing.M) {
+	testutil.InitialSetupDB(m)
+}
+
 func TestCacheRows(t *testing.T) {
 	db := testutil.SetupMysqlDB(t)
 	defer db.Close()

@@ -8,12 +8,13 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 )
 
 var mysqlContainer *mysql.MySQLContainer
 
-func TestMain(m *testing.M) {
+func InitialSetupDB(m *testing.M) {
 	ctx := context.Background()
 
 	container, err := mysql.Run(ctx, "mysql:8", mysql.WithUsername("root"), mysql.WithPassword("password"))
@@ -31,7 +32,6 @@ func TestMain(m *testing.M) {
 	db.Close()
 
 	mysqlContainer = container
-
 	m.Run()
 }
 
