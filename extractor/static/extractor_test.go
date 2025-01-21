@@ -1,4 +1,4 @@
-package extractor
+package static_extractor
 
 import (
 	"testing"
