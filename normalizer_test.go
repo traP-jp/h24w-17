@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/h24w-17/domains"
 	"github.com/stretchr/testify/assert"
+	"github.com/traP-jp/h24w-17/domains"
 )
 
 func TestNormalizeQuery(t *testing.T) {

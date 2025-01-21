@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
-	"github.com/h24w-17/domains"
+	"github.com/traP-jp/h24w-17/domains"
 )
 
 // TODO: generate
