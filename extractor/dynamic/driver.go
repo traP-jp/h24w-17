@@ -32,6 +32,8 @@ func (d AnalyzerDriver) Open(dsn string) (driver.Conn, error) {
 	return &AnalyzerConn{inner: conn}, nil
 }
 
+var _ driver.Driver = AnalyzerDriver{}
+
 type AnalyzerConn struct {
 	inner driver.Conn
 }
@@ -60,3 +62,5 @@ func (c *AnalyzerConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driv
 	}
 	return c.inner.Begin()
 }
+
+var _ driver.Conn = &AnalyzerConn{}

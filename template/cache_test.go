@@ -5,8 +5,10 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/traP-jp/h24w-17/testutil"
 )
 
@@ -15,19 +17,20 @@ func TestMain(m *testing.M) {
 }
 
 func TestCacheRows(t *testing.T) {
-	db := testutil.SetupMysqlDB(t)
+	db := testutil.SetupMysqlDB(t, "mysql")
 	defer db.Close()
 
+	schema, err := os.ReadFile("testdata/schema.sql")
+	assert.NoError(t, err)
+	_, err = db.Exec(string(schema))
+	assert.NoError(t, err)
+
 	// setup
-	_, err := db.Exec(`INSERT INTO users (id, name) VALUES (1, 'Alice')`)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err = db.Exec(`INSERT INTO users (id, name) VALUES (1, 'Alice')`)
+	assert.NoError(t, err)
 
 	conn, err := db.Conn(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 	defer conn.Close()
 
 	var cacheRows driver.Rows
