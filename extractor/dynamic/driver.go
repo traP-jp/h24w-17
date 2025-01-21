@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/go-sql-driver/mysql"
-	"github.com/traP-jp/h24w-17/normalizer"
 )
 
 func init() {
@@ -38,14 +38,16 @@ type AnalyzerConn struct {
 	inner driver.Conn
 }
 
-func processQuery(query string) error {
-	normalized, err := normalizer.NormalizeQuery(query)
-	if err != nil {
-		fmt.Printf("[WARN] failed to normalize query: %v\n", err)
-		return err
+var sqlPattern = regexp.MustCompile(`(?i)\b(SELECT|INSERT|UPDATE|DELETE)\b`)
+var replacePattern = regexp.MustCompile(`\s+`)
+
+func processQuery(query string) {
+	if !sqlPattern.MatchString(query) {
+		return
 	}
-	addQuery(normalized.Query)
-	return nil
+	query = strings.ReplaceAll(query, "\n", " ")
+	query = replacePattern.ReplaceAllString(query, " ")
+	addQuery(query)
 }
 
 func (c *AnalyzerConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
