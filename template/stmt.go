@@ -5,8 +5,8 @@ import (
 	"database/sql/driver"
 	"fmt"
 
-	"github.com/h24w-17/domains"
 	"github.com/motoki317/sc"
+	"github.com/traP-jp/h24w-17/domains"
 )
 
 var (

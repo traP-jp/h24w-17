@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/h24w-17/extractor"
 	"github.com/spf13/cobra"
+	"github.com/traP-jp/h24w-17/extractor"
 )
 
 var rootCmd = &cobra.Command{

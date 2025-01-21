@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/h24w-17/domains"
+	"github.com/traP-jp/h24w-17/domains"
 )
 
 type NormalizedQuery struct {
