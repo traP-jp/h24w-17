@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/traP-jp/h24w-17/extractor"
+	static_extractor "github.com/traP-jp/h24w-17/extractor/static"
 )
 
 var rootCmd = &cobra.Command{
@@ -22,23 +22,23 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("error getting out flag: %v", err)
 		}
 
-		valid := extractor.IsValidDir(path)
+		valid := static_extractor.IsValidDir(path)
 		if !valid {
 			return fmt.Errorf("invalid directory: %s", path)
 		}
-		files, err := extractor.ListAllGoFiles(path)
+		files, err := static_extractor.ListAllGoFiles(path)
 		if err != nil {
 			return fmt.Errorf("error listing go files: %v", err)
 		}
 
 		fmt.Printf("found %d go files\n", len(files))
-		extractedQueries := []*extractor.ExtractedQuery{}
+		extractedQueries := []*static_extractor.ExtractedQuery{}
 		for _, file := range files {
 			relativePath, err := filepath.Rel(path, file)
 			if err != nil {
 				return fmt.Errorf("error getting relative path: %v", err)
 			}
-			queries, err := extractor.ExtractQueryFromFile(file, path)
+			queries, err := static_extractor.ExtractQueryFromFile(file, path)
 			if err != nil {
 				return fmt.Errorf("❌ %s: error while extracting: %v", relativePath, err)
 			}
@@ -46,7 +46,7 @@ var rootCmd = &cobra.Command{
 			extractedQueries = append(extractedQueries, queries...)
 		}
 
-		err = extractor.WriteQueriesToFile(out, extractedQueries)
+		err = static_extractor.WriteQueriesToFile(out, extractedQueries)
 		if err != nil {
 			return fmt.Errorf("error writing queries to file: %v", err)
 		}
