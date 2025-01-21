@@ -130,6 +130,7 @@ func (r *CacheRows) Close() error {
 		r.rows.reset()
 		return nil
 	}
+	r.cached = true
 	return r.inner.Close()
 }
 
