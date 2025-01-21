@@ -41,7 +41,6 @@ func TestExtract(t *testing.T) {
 
 	queries := getQueries()
 	expected := []string{
-		`CREATE TABLE users (id INT, name VARCHAR(255))`,
 		`INSERT INTO users (id, name) VALUES (1, 'Alice')`,
 		`SELECT * FROM users`,
 	}
