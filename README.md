@@ -1,5 +1,27 @@
 # (名称未定)
 
+## How to use
+
+## Extractor
+
+### Static Extractor
+
+TODO
+
+### Dynamic Extractor
+
+1. add import statement
+
+```go
+import (
+  _ "github.com/traP-jp/h24w-17/extractor/dynamic"
+)
+```
+
+2. replace driver `mysql` with `mysql+analyzer`
+3. running your application
+4. access `http://localhost:39393` and get the query list
+
 ## Cache Plan
 
 ### Format
