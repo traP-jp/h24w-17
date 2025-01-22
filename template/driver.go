@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -117,6 +118,21 @@ type CacheRows struct {
 	columns []string
 	rows    sliceRows
 	limit   int
+
+	mu sync.Mutex
+}
+
+func (r *CacheRows) Clone() *CacheRows {
+	if !r.cached {
+		panic("cannot clone uncached rows")
+	}
+	return &CacheRows{
+		inner:   r.inner,
+		cached:  r.cached,
+		columns: r.columns,
+		rows:    r.rows.clone(),
+		limit:   r.limit,
+	}
 }
 
 func NewCachedRows(inner driver.Rows) *CacheRows {
@@ -125,10 +141,15 @@ func NewCachedRows(inner driver.Rows) *CacheRows {
 
 type row = []driver.Value
 
-// TODO: goroutine safe
 type sliceRows struct {
 	rows []row
 	idx  int
+}
+
+func (r sliceRows) clone() sliceRows {
+	rows := make([]row, len(r.rows))
+	copy(rows, r.rows)
+	return sliceRows{rows: rows}
 }
 
 func (r *sliceRows) append(row row) {

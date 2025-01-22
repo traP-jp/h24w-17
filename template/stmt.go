@@ -85,6 +85,11 @@ func (s *CustomCacheStatement) Query(args []driver.Value) (driver.Rows, error) {
 	if err != nil {
 		return nil, err
 	}
+	rows.mu.Lock()
+	defer rows.mu.Unlock()
+	if rows.cached {
+		return rows.Clone(), nil
+	}
 
 	return rows, nil
 }
