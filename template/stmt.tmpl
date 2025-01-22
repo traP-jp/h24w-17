@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"strings"
 
 	"github.com/motoki317/sc"
 	"github.com/traP-jp/h24w-17/domains"
@@ -108,11 +109,20 @@ func cacheName(query string) string {
 }
 
 func cacheKey(args []driver.Value) string {
-	key := ""
+	var b strings.Builder
 	for _, arg := range args {
-		key += fmt.Sprint(arg)
+		switch v := arg.(type) {
+		case string:
+			b.WriteString(v)
+		case []byte:
+			b.Write(v)
+		default:
+			fmt.Fprintf(&b, "%v", v)
+		}
+		// delimiter
+		b.WriteByte(0)
 	}
-	return key
+	return b.String()
 }
 
 func replaceFn(ctx context.Context, key string) (*CacheRows, error) {
