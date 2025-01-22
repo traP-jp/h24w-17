@@ -24,6 +24,15 @@ var caches = make(map[string]cacheWithInfo)
 
 var cacheByTable = make(map[string][]*sc.Cache[string, *CacheRows])
 
+func ExportMetrics() string {
+	res := ""
+	for query, cache := range caches {
+		res += "query: " + query + "\n"
+		res += cache.cache.Stats().String() + "\n"
+	}
+	return res
+}
+
 type CustomCacheStatement struct {
 	inner    driver.Stmt
 	rawQuery string
