@@ -3,6 +3,7 @@ package {{ .PackageName }}
 import (
 	"context"
 	"database/sql/driver"
+	"fmt"
 
 	"github.com/motoki317/sc"
 	"github.com/traP-jp/h24w-17/domains"
@@ -15,18 +16,21 @@ type (
 
 type cacheWithInfo struct {
 	info  domains.CachePlanSelectQuery
-	cache *sc.Cache[struct{}, driver.Rows]
+	cache *sc.Cache[string, *CacheRows]
 }
 
 // NOTE: no write happens to this map, so it's safe to use in concurrent environment
 var caches = make(map[string]cacheWithInfo)
 
-var cacheByTable = make(map[string][]*sc.Cache[struct{}, driver.Rows])
+var cacheByTable = make(map[string][]*sc.Cache[string, *CacheRows])
 
 type CustomCacheStatement struct {
-	inner     driver.Stmt
-	query     string
-	queryInfo domains.CachePlanQuery
+	inner    driver.Stmt
+	rawQuery string
+	// query is the normalized query
+	query           string
+	extraConditions []domains.CachePlanCondition
+	queryInfo       domains.CachePlanQuery
 }
 
 func (s *CustomCacheStatement) Close() error {
@@ -77,14 +81,27 @@ func (s *CustomCacheStatement) execDelete(args []driver.Value) (driver.Result, e
 func (s *CustomCacheStatement) Query(args []driver.Value) (driver.Rows, error) {
 	ctx := context.WithValue(context.Background(), stmtKey{}, s)
 	ctx = context.WithValue(ctx, argsKey{}, args)
-	return caches[cacheName(s.query)].cache.Get(ctx, struct{}{})
+	rows, err := caches[cacheName(s.query)].cache.Get(ctx, cacheKey(args))
+	if err != nil {
+		return nil, err
+	}
+
+	return rows, nil
 }
 
 func cacheName(query string) string {
 	return query
 }
 
-func replaceFn(ctx context.Context, _ struct{}) (driver.Rows, error) {
+func cacheKey(args []driver.Value) string {
+	key := ""
+	for _, arg := range args {
+		key += fmt.Sprint(arg)
+	}
+	return key
+}
+
+func replaceFn(ctx context.Context, key string) (*CacheRows, error) {
 	stmt := ctx.Value(stmtKey{}).(*CustomCacheStatement)
 	args := ctx.Value(argsKey{}).([]driver.Value)
 	rows, err := stmt.inner.Query(args)

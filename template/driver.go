@@ -11,6 +11,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/motoki317/sc"
 	"github.com/traP-jp/h24w-17/domains"
+	"github.com/traP-jp/h24w-17/normalizer"
 )
 
 var queryMap = make(map[string]domains.CachePlanQuery)
@@ -67,25 +68,31 @@ type CacheConn struct {
 	inner driver.Conn
 }
 
-func (c *CacheConn) Prepare(query string) (driver.Stmt, error) {
-	// TODO: normalize query
-	queryInfo, ok := queryMap[query]
+func (c *CacheConn) Prepare(rawQuery string) (driver.Stmt, error) {
+	normalized, err := normalizer.NormalizeQuery(rawQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	queryInfo, ok := queryMap[normalized.Query]
 	if !ok {
-		return c.inner.Prepare(query)
+		return c.inner.Prepare(rawQuery)
 	}
 
 	if queryInfo.Type == domains.CachePlanQueryType_SELECT && !queryInfo.Select.Cache {
-		return c.inner.Prepare(query)
+		return c.inner.Prepare(rawQuery)
 	}
 
-	innerStmt, err := c.inner.Prepare(query)
+	innerStmt, err := c.inner.Prepare(rawQuery)
 	if err != nil {
 		return nil, err
 	}
 	return &CustomCacheStatement{
-		inner:     innerStmt,
-		query:     query,
-		queryInfo: queryInfo,
+		inner:           innerStmt,
+		rawQuery:        rawQuery,
+		query:           normalized.Query,
+		extraConditions: normalized.ExtraConditions,
+		queryInfo:       queryInfo,
 	}, nil
 }
 
@@ -109,6 +116,7 @@ type CacheRows struct {
 	cached  bool
 	columns []string
 	rows    sliceRows
+	limit   int
 }
 
 func NewCachedRows(inner driver.Rows) *CacheRows {
@@ -131,9 +139,13 @@ func (r *sliceRows) reset() {
 	r.idx = 0
 }
 
-func (r *sliceRows) Next(dest []driver.Value) error {
+func (r *sliceRows) Next(dest []driver.Value, limit int) error {
 	if r.idx >= len(r.rows) {
-		r.idx = 0
+		r.reset()
+		return io.EOF
+	}
+	if limit > 0 && r.idx >= limit {
+		r.reset()
 		return io.EOF
 	}
 	row := r.rows[r.idx]
@@ -163,7 +175,7 @@ func (r *CacheRows) Close() error {
 
 func (r *CacheRows) Next(dest []driver.Value) error {
 	if r.cached {
-		return r.rows.Next(dest)
+		return r.rows.Next(dest, r.limit)
 	}
 
 	err := r.inner.Next(dest)
