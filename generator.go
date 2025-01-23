@@ -3,6 +3,7 @@ package h24w17
 import (
 	"os"
 	"path"
+	"strings"
 	"text/template"
 )
 
@@ -21,7 +22,7 @@ func NewGenerator(cachePlanRaw string) *Generator {
 	return &Generator{
 		driverTmpl: template.Must(template.ParseFiles("template/driver.tmpl")),
 		stmtTmpl:   template.Must(template.ParseFiles("template/stmt.tmpl")),
-		data:       data{CachePlanRaw: cachePlanRaw},
+		data:       data{CachePlanRaw: escapeGoString(cachePlanRaw)},
 	}
 }
 
@@ -45,4 +46,18 @@ func (g *Generator) Generate(destDir string) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func escapeGoString(s string) string {
+	split := strings.Split(s, "`")
+	var b strings.Builder
+	b.WriteByte('`')
+	for i, v := range split {
+		b.WriteString(v)
+		if i != len(split)-1 {
+			b.WriteString("` + \"`\" + `")
+		}
+	}
+	b.WriteByte('`')
+	return b.String()
 }

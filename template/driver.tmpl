@@ -17,7 +17,7 @@ import (
 
 var queryMap = make(map[string]domains.CachePlanQuery)
 
-const cachePlanRaw = `{{ .CachePlanRaw }}`
+const cachePlanRaw = {{ .CachePlanRaw }}
 
 func init() {
 	sql.Register("mysql+cache", CacheDriver{})
