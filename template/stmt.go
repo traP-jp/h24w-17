@@ -12,6 +12,7 @@ import (
 )
 
 type (
+	queryKey      struct{}
 	stmtKey       struct{}
 	argsKey       struct{}
 	queryerCtxKey struct{}
@@ -135,6 +136,7 @@ func (c *CacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []
 	cacheKey := cacheKey(args)
 	cachectx := context.WithValue(ctx, namedArgsKey{}, nvargs)
 	cachectx = context.WithValue(cachectx, queryerCtxKey{}, inner)
+	cachectx = context.WithValue(cachectx, queryKey{}, rawQuery)
 	rows, err := cache.Get(cachectx, cacheKey)
 	if err != nil {
 		return nil, err
@@ -173,8 +175,9 @@ func cacheKey(args []driver.Value) string {
 func replaceFn(ctx context.Context, key string) (*CacheRows, error) {
 	queryerCtx, ok := ctx.Value(queryerCtxKey{}).(driver.QueryerContext)
 	if ok {
+		query := ctx.Value(queryKey{}).(string)
 		nvargs := ctx.Value(namedArgsKey{}).([]driver.NamedValue)
-		rows, err := queryerCtx.QueryContext(ctx, key, nvargs)
+		rows, err := queryerCtx.QueryContext(ctx, query, nvargs)
 		if err != nil {
 			return nil, err
 		}
