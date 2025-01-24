@@ -98,11 +98,11 @@ func (c *CacheConn) Prepare(rawQuery string) (driver.Stmt, error) {
 		return nil, err
 	}
 	return &CustomCacheStatement{
-		inner:           innerStmt,
-		rawQuery:        rawQuery,
-		query:           normalized.Query,
-		extraConditions: normalized.ExtraConditions,
-		queryInfo:       queryInfo,
+		inner:     innerStmt,
+		rawQuery:  rawQuery,
+		query:     normalized.Query,
+		extraArgs: normalized.ExtraArgs,
+		queryInfo: queryInfo,
 	}, nil
 }
 

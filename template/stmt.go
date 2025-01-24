@@ -44,9 +44,9 @@ type CustomCacheStatement struct {
 	inner    driver.Stmt
 	rawQuery string
 	// query is the normalized query
-	query           string
-	extraConditions []domains.CachePlanCondition
-	queryInfo       domains.CachePlanQuery
+	query     string
+	extraArgs []normalizer.ExtraArg
+	queryInfo domains.CachePlanQuery
 }
 
 func (s *CustomCacheStatement) Close() error {
