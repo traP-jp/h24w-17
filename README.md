@@ -35,7 +35,7 @@ func main() {
 
 ```sh
 DATABASE='isupipe'
-mysql -u root -ppass -h 127.0.0.1 -N -e "SHOW TABLES FROM $DATABASE" | while read table; do mysql -u root -ppass -h 127.0.0.1 -e "SHOW CREATE TABLE $DATABASE.\`$table\`" | awk 'NR>1 {$1=""; print substr($0,2)}' | sed 's/\\n/\n/g'; done > schema.sql
+mysql -u root -ppass -h 127.0.0.1 -N -e "SHOW TABLES FROM $DATABASE" | while read table; do mysql -u root -ppass -h 127.0.0.1 -e "SHOW CREATE TABLE $DATABASE.\`$table\`" | awk 'NR>1 {$1=""; print substr($0,2) ";"}' | sed 's/\\n/\n/g'; done > schema.sql
 ```
 
 ## Cache Plan
