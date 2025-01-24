@@ -14,15 +14,16 @@ type Generator struct {
 }
 
 type data struct {
-	PackageName  string
-	CachePlanRaw string
+	PackageName    string
+	CachePlanRaw   string
+	TableSchemaRaw string
 }
 
-func NewGenerator(cachePlanRaw string) *Generator {
+func NewGenerator(cachePlanRaw string, tableSchemaRaw string) *Generator {
 	return &Generator{
 		driverTmpl: template.Must(template.ParseFiles("template/driver.tmpl")),
 		stmtTmpl:   template.Must(template.ParseFiles("template/stmt.tmpl")),
-		data:       data{CachePlanRaw: escapeGoString(cachePlanRaw)},
+		data:       data{CachePlanRaw: escapeGoString(cachePlanRaw), TableSchemaRaw: escapeGoString(tableSchemaRaw)},
 	}
 }
 
