@@ -52,6 +52,7 @@ type Query = SelectQuery | UpdateQuery | DeleteQuery | InsertQuery
 type Condition = {
   column: string
   value?: number | string
+  operator: 'eq' | 'in'
 }
 
 type SelectQuery = CachableSelectQuery | NonCachableSelectQuery

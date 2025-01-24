@@ -27,9 +27,17 @@ const (
 )
 
 type CachePlanCondition struct {
-	Column string      `yaml:"column"`
-	Value  interface{} `yaml:"value,omitempty"`
+	Column   string                `yaml:"column"`
+	Value    interface{}           `yaml:"value,omitempty"`
+	Operator CachePlanOperatorEnum `yaml:"operator,omitempty"`
 }
+
+type CachePlanOperatorEnum string
+
+const (
+	CachePlanOperator_EQ CachePlanOperatorEnum = "eq"
+	CachePlanOperator_IN CachePlanOperatorEnum = "in"
+)
 
 type CachePlanOrder struct {
 	Column string             `yaml:"column"`
