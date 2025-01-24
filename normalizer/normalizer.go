@@ -6,13 +6,16 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/traP-jp/h24w-17/domains"
 )
 
+type ExtraArg struct {
+	Column string
+	Value  interface{}
+}
+
 type NormalizedQuery struct {
-	Query           string
-	ExtraConditions []domains.CachePlanCondition
+	Query     string
+	ExtraArgs []ExtraArg
 }
 
 func unwrapInt(s string) int {
@@ -27,29 +30,29 @@ var patterns = []replacementPattern{
 	{
 		regex:       regexp.MustCompile(`(?i)\b([a-z]+)\s*=\s*(\d+)`),
 		replacement: "$1 = ?",
-		condition: func(match []string) *domains.CachePlanCondition {
-			return &domains.CachePlanCondition{Column: match[1], Value: unwrapInt(match[2])}
+		condition: func(match []string) *ExtraArg {
+			return &ExtraArg{Column: match[1], Value: unwrapInt(match[2])}
 		},
 	},
 	{
 		regex:       regexp.MustCompile(`(?i)\b([a-z]+)\s*=\s*['"]([^']*)['"]`),
 		replacement: "$1 = ?",
-		condition: func(match []string) *domains.CachePlanCondition {
-			return &domains.CachePlanCondition{Column: match[1], Value: match[2]}
+		condition: func(match []string) *ExtraArg {
+			return &ExtraArg{Column: match[1], Value: match[2]}
 		},
 	},
 	{
 		regex:       regexp.MustCompile(`(?i)\b(IN|VALUES)\s*\(\s*\?\s*(?:\s*,\s*\?)*\s*\)`),
 		replacement: "$1 (?)",
-		condition: func(match []string) *domains.CachePlanCondition {
+		condition: func(match []string) *ExtraArg {
 			return nil
 		},
 	},
 	{
 		regex:       regexp.MustCompile(`(?i)\bLIMIT\s+(\d+)`),
 		replacement: "LIMIT ?",
-		condition: func(match []string) *domains.CachePlanCondition {
-			return &domains.CachePlanCondition{Column: "LIMIT()", Value: unwrapInt(match[1])}
+		condition: func(match []string) *ExtraArg {
+			return &ExtraArg{Column: "LIMIT()", Value: unwrapInt(match[1])}
 		},
 	},
 }
@@ -57,7 +60,7 @@ var patterns = []replacementPattern{
 type replacementPattern struct {
 	regex       *regexp.Regexp
 	replacement string
-	condition   func(match []string) *domains.CachePlanCondition
+	condition   func(match []string) *ExtraArg
 }
 
 func NormalizeQuery(query string) (NormalizedQuery, error) {
@@ -65,7 +68,7 @@ func NormalizeQuery(query string) (NormalizedQuery, error) {
 		return NormalizedQuery{}, errors.New("query cannot be empty")
 	}
 
-	extraConditions := []domains.CachePlanCondition{}
+	extraArgs := []ExtraArg{}
 
 	normalizedQuery := query
 
@@ -77,7 +80,7 @@ func NormalizeQuery(query string) (NormalizedQuery, error) {
 			if pattern.condition != nil {
 				condition := pattern.condition(match)
 				if condition != nil {
-					extraConditions = append(extraConditions, *condition)
+					extraArgs = append(extraArgs, *condition)
 				}
 			}
 		}
@@ -87,7 +90,7 @@ func NormalizeQuery(query string) (NormalizedQuery, error) {
 	normalizedQuery = strings.TrimSpace(normalizedQuery)
 
 	return NormalizedQuery{
-		Query:           normalizedQuery,
-		ExtraConditions: extraConditions,
+		Query:     normalizedQuery,
+		ExtraArgs: extraArgs,
 	}, nil
 }
