@@ -49,10 +49,15 @@ type Format = {
 
 type Query = SelectQuery | UpdateQuery | DeleteQuery | InsertQuery
 
+type Placeholder = {
+  index: number;
+  extra?: boolean
+}
+
 type Condition = {
   column: string
-  value?: number | string
   operator: 'eq' | 'in'
+  placeholder: Placeholder
 }
 
 type SelectQuery = CachableSelectQuery | NonCachableSelectQuery
@@ -63,8 +68,6 @@ type CachableSelectQuery = {
   cache: true
   table: string
   targets: string[]
-  // ?の位置と一致するような順番
-  // 固定値でWHEREしている場合は最後に
   conditions: Condition[]
   orders: {
     column: string
