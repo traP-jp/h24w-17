@@ -21,6 +21,9 @@ var formatted = `queries:
       - created_at
     conditions:
       - column: livestream_id
+        operator: eq
+        placeholder:
+          index: 0
     orders:
       - column: created_at
         order: desc
@@ -35,26 +38,46 @@ var formatted = `queries:
       - COUNT()
     conditions:
       - column: livestream_id
+        operator: eq
+        placeholder:
+          index: 0
   - query: DELETE FROM livecomments WHERE id = ? AND livestream_id = ? AND (SELECT COUNT(*) FROM (SELECT ? AS text) AS texts INNER JOIN (SELECT CONCAT('%', ?, '%') AS pattern) AS patterns ON texts.text LIKE patterns.pattern) >= 1;
     type: delete
     table: livecomments
     conditions:
       - column: id
+        operator: eq
+        placeholder:
+          index: 0
       - column: livestream_id
+        operator: eq
+        placeholder:
+          index: 1
   - query: DELETE FROM livestream_viewers_history WHERE user_id = ? AND livestream_id = ?
     type: delete
     table: livestream_viewers_history
     conditions:
       - column: user_id
+        operator: eq
+        placeholder:
+          index: 0
       - column: livestream_id
-  - query: UPDATE settings SET value = ? WHERE name = 'payment_gateway_url'
+        operator: eq
+        placeholder:
+          index: 1
+  - query: UPDATE settings SET value = ? WHERE name = ?
     type: update
     table: settings
     targets:
-      - value
+      - column: value
+        placeholder:
+          index: 0
     conditions:
       - column: name
-        value: payment_gateway_url
+        operator: eq
+        placeholder:
+          index: 0
+          extra: true
 `
 
 var parsed = &CachePlan{
@@ -65,11 +88,15 @@ var parsed = &CachePlan{
 				Query: "SELECT * FROM livecomments WHERE livestream_id = ? ORDER BY created_at DESC",
 			},
 			Select: &CachePlanSelectQuery{
-				Table:      "livecomments",
-				Cache:      true,
-				Targets:    []string{"id", "user_id", "livestream_id", "comment", "tip", "created_at"},
-				Conditions: []CachePlanCondition{{Column: "livestream_id"}},
-				Orders:     []CachePlanOrder{{Column: "created_at", Order: "desc"}},
+				Table:   "livecomments",
+				Cache:   true,
+				Targets: []string{"id", "user_id", "livestream_id", "comment", "tip", "created_at"},
+				Conditions: []CachePlanCondition{
+					{Column: "livestream_id", Operator: CachePlanOperator_EQ, Placeholder: CachePlanPlaceholder{Index: 0}},
+				},
+				Orders: []CachePlanOrder{
+					{Column: "created_at", Order: "desc"},
+				},
 			},
 		},
 		{
@@ -87,10 +114,12 @@ var parsed = &CachePlan{
 				Type:  CachePlanQueryType_SELECT,
 			},
 			Select: &CachePlanSelectQuery{
-				Table:      "livestream_viewers_history",
-				Cache:      true,
-				Targets:    []string{"COUNT()"},
-				Conditions: []CachePlanCondition{{Column: "livestream_id"}},
+				Table:   "livestream_viewers_history",
+				Cache:   true,
+				Targets: []string{"COUNT()"},
+				Conditions: []CachePlanCondition{
+					{Column: "livestream_id", Operator: CachePlanOperator_EQ, Placeholder: CachePlanPlaceholder{Index: 0}},
+				},
 			},
 		},
 		{
@@ -99,8 +128,11 @@ var parsed = &CachePlan{
 				Type:  CachePlanQueryType_DELETE,
 			},
 			Delete: &CachePlanDeleteQuery{
-				Table:      "livecomments",
-				Conditions: []CachePlanCondition{{Column: "id"}, {Column: "livestream_id"}},
+				Table: "livecomments",
+				Conditions: []CachePlanCondition{
+					{Column: "id", Operator: CachePlanOperator_EQ, Placeholder: CachePlanPlaceholder{Index: 0}},
+					{Column: "livestream_id", Operator: CachePlanOperator_EQ, Placeholder: CachePlanPlaceholder{Index: 1}},
+				},
 			},
 		},
 		{
@@ -109,19 +141,26 @@ var parsed = &CachePlan{
 				Type:  CachePlanQueryType_DELETE,
 			},
 			Delete: &CachePlanDeleteQuery{
-				Table:      "livestream_viewers_history",
-				Conditions: []CachePlanCondition{{Column: "user_id"}, {Column: "livestream_id"}},
+				Table: "livestream_viewers_history",
+				Conditions: []CachePlanCondition{
+					{Column: "user_id", Operator: CachePlanOperator_EQ, Placeholder: CachePlanPlaceholder{Index: 0}},
+					{Column: "livestream_id", Operator: CachePlanOperator_EQ, Placeholder: CachePlanPlaceholder{Index: 1}},
+				},
 			},
 		},
 		{
 			CachePlanQueryBase: &CachePlanQueryBase{
-				Query: "UPDATE settings SET value = ? WHERE name = 'payment_gateway_url'",
+				Query: "UPDATE settings SET value = ? WHERE name = ?",
 				Type:  CachePlanQueryType_UPDATE,
 			},
 			Update: &CachePlanUpdateQuery{
-				Table:      "settings",
-				Targets:    []string{"value"},
-				Conditions: []CachePlanCondition{{Column: "name", Value: "payment_gateway_url"}},
+				Table: "settings",
+				Targets: []CachePlanUpdateTarget{
+					{Column: "value", Placeholder: CachePlanPlaceholder{Index: 0}},
+				},
+				Conditions: []CachePlanCondition{
+					{Column: "name", Operator: CachePlanOperator_EQ, Placeholder: CachePlanPlaceholder{Index: 0, Extra: true}},
+				},
 			},
 		},
 	},

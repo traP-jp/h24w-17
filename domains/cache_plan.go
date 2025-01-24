@@ -26,10 +26,23 @@ const (
 	CachePlanQueryType_INSERT CachePlanQueryType = "insert"
 )
 
-type CachePlanCondition struct {
-	Column string      `yaml:"column"`
-	Value  interface{} `yaml:"value,omitempty"`
+type CachePlanPlaceholder struct {
+	Index int  `yaml:"index"`
+	Extra bool `yaml:"extra,omitempty"`
 }
+
+type CachePlanCondition struct {
+	Column      string                `yaml:"column"`
+	Operator    CachePlanOperatorEnum `yaml:"operator,omitempty"`
+	Placeholder CachePlanPlaceholder  `yaml:"placeholder"`
+}
+
+type CachePlanOperatorEnum string
+
+const (
+	CachePlanOperator_EQ CachePlanOperatorEnum = "eq"
+	CachePlanOperator_IN CachePlanOperatorEnum = "in"
+)
 
 type CachePlanOrder struct {
 	Column string             `yaml:"column"`
@@ -51,10 +64,15 @@ type CachePlanSelectQuery struct {
 	Orders     []CachePlanOrder     `yaml:"orders,omitempty"`
 }
 
+type CachePlanUpdateTarget struct {
+	Column      string               `yaml:"column"`
+	Placeholder CachePlanPlaceholder `yaml:"placeholder"`
+}
+
 type CachePlanUpdateQuery struct {
-	Table      string               `yaml:"table"`
-	Targets    []string             `yaml:"targets"`
-	Conditions []CachePlanCondition `yaml:"conditions,omitempty"`
+	Table      string                  `yaml:"table"`
+	Targets    []CachePlanUpdateTarget `yaml:"targets"`
+	Conditions []CachePlanCondition    `yaml:"conditions,omitempty"`
 }
 
 type CachePlanDeleteQuery struct {

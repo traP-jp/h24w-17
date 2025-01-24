@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/traP-jp/h24w-17/domains"
 )
 
 func TestNormalizeQuery(t *testing.T) {
@@ -16,15 +15,15 @@ func TestNormalizeQuery(t *testing.T) {
 		{
 			query: "SELECT * FROM users WHERE id = ?;",
 			expected: NormalizedQuery{
-				Query:           "SELECT * FROM users WHERE id = ?;",
-				ExtraConditions: []domains.CachePlanCondition{},
+				Query:     "SELECT * FROM users WHERE id = ?;",
+				ExtraArgs: []ExtraArg{},
 			},
 		},
 		{
 			query: "SELECT * FROM users WHERE id = 1;",
 			expected: NormalizedQuery{
 				Query: "SELECT * FROM users WHERE id = ?;",
-				ExtraConditions: []domains.CachePlanCondition{
+				ExtraArgs: []ExtraArg{
 					{Column: "id", Value: 1},
 				},
 			},
@@ -33,7 +32,7 @@ func TestNormalizeQuery(t *testing.T) {
 			query: "SELECT * FROM users WHERE id = 1 AND name = 'John';",
 			expected: NormalizedQuery{
 				Query: "SELECT * FROM users WHERE id = ? AND name = ?;",
-				ExtraConditions: []domains.CachePlanCondition{
+				ExtraArgs: []ExtraArg{
 					{Column: "id", Value: 1},
 					{Column: "name", Value: "John"},
 				},
@@ -43,7 +42,7 @@ func TestNormalizeQuery(t *testing.T) {
 			query: "SELECT * FROM users ORDER BY created_at LIMIT 1;",
 			expected: NormalizedQuery{
 				Query: "SELECT * FROM users ORDER BY created_at LIMIT ?;",
-				ExtraConditions: []domains.CachePlanCondition{
+				ExtraArgs: []ExtraArg{
 					{Column: "LIMIT()", Value: 1},
 				},
 			},
@@ -51,15 +50,15 @@ func TestNormalizeQuery(t *testing.T) {
 		{
 			query: "SELECT * FROM users WHERE id IN (?, ?, ?);",
 			expected: NormalizedQuery{
-				Query:           "SELECT * FROM users WHERE id IN (?);",
-				ExtraConditions: []domains.CachePlanCondition{},
+				Query:     "SELECT * FROM users WHERE id IN (?);",
+				ExtraArgs: []ExtraArg{},
 			},
 		},
 		{
 			query: "INSERT INTO users (id, name) VALUES (?, ?, ?, ?, ?, ?);",
 			expected: NormalizedQuery{
-				Query:           "INSERT INTO users (id, name) VALUES (?);",
-				ExtraConditions: []domains.CachePlanCondition{},
+				Query:     "INSERT INTO users (id, name) VALUES (?);",
+				ExtraArgs: []ExtraArg{},
 			},
 		},
 	}
