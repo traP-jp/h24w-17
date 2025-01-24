@@ -153,7 +153,7 @@ func (r *CacheRows) Clone() *CacheRows {
 	}
 }
 
-func NewCachedRows(inner driver.Rows) *CacheRows {
+func NewCacheRows(inner driver.Rows) *CacheRows {
 	return &CacheRows{inner: inner}
 }
 

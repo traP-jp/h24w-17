@@ -185,7 +185,7 @@ func replaceFn(ctx context.Context, key string) (*CacheRows, error) {
 		if err != nil {
 			return nil, err
 		}
-		res = NewCachedRows(rows)
+		res = NewCacheRows(rows)
 	} else {
 		stmt := ctx.Value(stmtKey{}).(*CustomCacheStatement)
 		args := ctx.Value(argsKey{}).([]driver.Value)
@@ -193,7 +193,7 @@ func replaceFn(ctx context.Context, key string) (*CacheRows, error) {
 		if err != nil {
 			return nil, err
 		}
-		res = NewCachedRows(rows)
+		res = NewCacheRows(rows)
 	}
 
 	if err := res.createCache(); err != nil {
