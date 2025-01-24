@@ -31,20 +31,20 @@ func TestLoadTableSchema(t *testing.T) {
 			expected: []TableSchema{
 				{
 					TableName: "users",
-					Columns: []TableSchemaColumn{
-						{ColumnName: "id", DataType: TableSchemaDataType_INT64, IsNullable: true, IsPrimary: true, IsUnique: false},
-						{ColumnName: "name", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: true},
-						{ColumnName: "created_at", DataType: TableSchemaDataType_DATETIME, IsNullable: true, IsPrimary: false, IsUnique: true},
-						{ColumnName: "description", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: false},
-						{ColumnName: "icon", DataType: TableSchemaDataType_BYTES, IsNullable: false, IsPrimary: false, IsUnique: false},
+					Columns: map[string]TableSchemaColumn{
+						"id":          {ColumnName: "id", DataType: TableSchemaDataType_INT64, IsNullable: true, IsPrimary: true, IsUnique: false},
+						"name":        {ColumnName: "name", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: true},
+						"created_at":  {ColumnName: "created_at", DataType: TableSchemaDataType_DATETIME, IsNullable: true, IsPrimary: false, IsUnique: true},
+						"description": {ColumnName: "description", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: false},
+						"icon":        {ColumnName: "icon", DataType: TableSchemaDataType_BYTES, IsNullable: false, IsPrimary: false, IsUnique: false},
 					},
 				},
 				{
 					TableName: "posts",
-					Columns: []TableSchemaColumn{
-						{ColumnName: "id", DataType: TableSchemaDataType_INT64, IsNullable: false, IsPrimary: true, IsUnique: false},
-						{ColumnName: "title", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: true},
-						{ColumnName: "content", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: false},
+					Columns: map[string]TableSchemaColumn{
+						"id":      {ColumnName: "id", DataType: TableSchemaDataType_INT64, IsNullable: false, IsPrimary: true, IsUnique: false},
+						"title":   {ColumnName: "title", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: true},
+						"content": {ColumnName: "content", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: false},
 					},
 				},
 			},
@@ -81,34 +81,34 @@ func TestLoadTableSchema(t *testing.T) {
 			expected: []TableSchema{
 				{
 					TableName: "users",
-					Columns: []TableSchemaColumn{
-						{ColumnName: "id", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: true, IsUnique: false},
-						{ColumnName: "account_name", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: true},
-						{ColumnName: "passhash", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: false},
-						{ColumnName: "authority", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: false, IsUnique: false},
-						{ColumnName: "del_flg", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: false, IsUnique: false},
-						{ColumnName: "created_at", DataType: TableSchemaDataType_DATETIME, IsNullable: false, IsPrimary: false, IsUnique: false},
+					Columns: map[string]TableSchemaColumn{
+						"id":           {ColumnName: "id", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: true, IsUnique: false},
+						"account_name": {ColumnName: "account_name", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: true},
+						"passhash":     {ColumnName: "passhash", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: false},
+						"authority":    {ColumnName: "authority", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: false, IsUnique: false},
+						"del_flg":      {ColumnName: "del_flg", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: false, IsUnique: false},
+						"created_at":   {ColumnName: "created_at", DataType: TableSchemaDataType_DATETIME, IsNullable: false, IsPrimary: false, IsUnique: false},
 					},
 				},
 				{
 					TableName: "posts",
-					Columns: []TableSchemaColumn{
-						{ColumnName: "id", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: true, IsUnique: false},
-						{ColumnName: "user_id", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: false, IsUnique: false},
-						{ColumnName: "mime", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: false},
-						{ColumnName: "imgdata", DataType: TableSchemaDataType_BYTES, IsNullable: false, IsPrimary: false, IsUnique: false},
-						{ColumnName: "body", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: false},
-						{ColumnName: "created_at", DataType: TableSchemaDataType_DATETIME, IsNullable: false, IsPrimary: false, IsUnique: false},
+					Columns: map[string]TableSchemaColumn{
+						"id":         {ColumnName: "id", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: true, IsUnique: false},
+						"user_id":    {ColumnName: "user_id", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: false, IsUnique: false},
+						"mime":       {ColumnName: "mime", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: false},
+						"imgdata":    {ColumnName: "imgdata", DataType: TableSchemaDataType_BYTES, IsNullable: false, IsPrimary: false, IsUnique: false},
+						"body":       {ColumnName: "body", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: false},
+						"created_at": {ColumnName: "created_at", DataType: TableSchemaDataType_DATETIME, IsNullable: false, IsPrimary: false, IsUnique: false},
 					},
 				},
 				{
 					TableName: "comments",
-					Columns: []TableSchemaColumn{
-						{ColumnName: "id", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: true, IsUnique: false},
-						{ColumnName: "post_id", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: false, IsUnique: false},
-						{ColumnName: "user_id", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: false, IsUnique: false},
-						{ColumnName: "comment", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: false},
-						{ColumnName: "created_at", DataType: TableSchemaDataType_DATETIME, IsNullable: false, IsPrimary: false, IsUnique: false},
+					Columns: map[string]TableSchemaColumn{
+						"id":         {ColumnName: "id", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: true, IsUnique: false},
+						"post_id":    {ColumnName: "post_id", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: false, IsUnique: false},
+						"user_id":    {ColumnName: "user_id", DataType: TableSchemaDataType_INT, IsNullable: false, IsPrimary: false, IsUnique: false},
+						"comment":    {ColumnName: "comment", DataType: TableSchemaDataType_STRING, IsNullable: false, IsPrimary: false, IsUnique: false},
+						"created_at": {ColumnName: "created_at", DataType: TableSchemaDataType_DATETIME, IsNullable: false, IsPrimary: false, IsUnique: false},
 					},
 				},
 			},

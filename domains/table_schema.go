@@ -2,7 +2,14 @@ package domains
 
 type TableSchema struct {
 	TableName string
-	Columns   []TableSchemaColumn
+	// ColumnName -> ColumnSchema
+	Columns map[string]TableSchemaColumn
+}
+
+func newTableSchema() TableSchema {
+	return TableSchema{
+		Columns: make(map[string]TableSchemaColumn),
+	}
 }
 
 type TableSchemaColumn struct {

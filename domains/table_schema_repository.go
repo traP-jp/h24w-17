@@ -2,6 +2,7 @@ package domains
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -19,65 +20,69 @@ func LoadTableSchema(sql string) ([]TableSchema, error) {
 	tableNames := tableDefRegex.SubexpNames()
 
 	for _, tableMatch := range tableMatches {
-		var schema TableSchema
+		var schema = newTableSchema()
+
+		var tableName string
 		for i, name := range tableNames {
 			if name == "TableName" {
-				schema.TableName = tableMatch[i]
-			} else if name == "Columns" {
-				columnsDef := tableMatch[i]
-				columnDefs := strings.Split(columnsDef, ",")
-				for _, columnDef := range columnDefs {
-					columnDef = strings.TrimSpace(columnDef)
-					primaryKeyMatches := primaryKeyRegex.FindStringSubmatch(columnDef)
-					if len(primaryKeyMatches) > 0 {
-						primaryKeyNames := primaryKeyRegex.SubexpNames()
-						for j, name := range primaryKeyNames {
-							if name == "ColumnName" {
-								for i, column := range schema.Columns {
-									if column.ColumnName == primaryKeyMatches[j] {
-										schema.Columns[i].IsPrimary = true
-									}
-								}
-							}
+				tableName = tableMatch[i]
+			}
+		}
+		schema.TableName = tableName
+
+		for i := range tableNames {
+			columnsDef := tableMatch[i]
+			columnDefs := strings.Split(columnsDef, ",")
+			for _, columnDef := range columnDefs {
+				columnDef = strings.TrimSpace(columnDef)
+
+				primaryKeyMatches := primaryKeyRegex.FindStringSubmatch(columnDef)
+				if len(primaryKeyMatches) > 0 {
+					primaryKeyNames := primaryKeyRegex.SubexpNames()
+					j := slices.Index(primaryKeyNames, "ColumnName")
+					if j >= 0 {
+						primaryKeyColumn, ok := schema.Columns[primaryKeyMatches[j]]
+						if ok {
+							primaryKeyColumn.IsPrimary = true
+							schema.Columns[primaryKeyMatches[j]] = primaryKeyColumn
 						}
 					}
+				}
 
-					uniqueMatches := uniqueRegex.FindStringSubmatch(columnDef)
-					if len(uniqueMatches) > 0 {
-						uniqueNames := uniqueRegex.SubexpNames()
-						for j, name := range uniqueNames {
-							if name == "ColumnName" {
-								for i, column := range schema.Columns {
-									if column.ColumnName == uniqueMatches[j] {
-										schema.Columns[i].IsUnique = true
-									}
-								}
-							}
+				uniqueMatches := uniqueRegex.FindStringSubmatch(columnDef)
+				if len(uniqueMatches) > 0 {
+					uniqueNames := uniqueRegex.SubexpNames()
+					j := slices.Index(uniqueNames, "ColumnName")
+					if j >= 0 {
+						uniqueColumn, ok := schema.Columns[uniqueMatches[j]]
+						if ok {
+							uniqueColumn.IsUnique = true
+							schema.Columns[uniqueMatches[j]] = uniqueColumn
 						}
 					}
+				}
 
-					columnMatches := columnDefRegex.FindAllStringSubmatch(columnDef, -1)
-					columnNames := columnDefRegex.SubexpNames()
+				columnMatches := columnDefRegex.FindAllStringSubmatch(columnDef, -1)
+				columnNames := columnDefRegex.SubexpNames()
 
-					for _, columnMatch := range columnMatches {
-						var column TableSchemaColumn
-						column.IsNullable = true
-						for j, cname := range columnNames {
-							switch cname {
-							case "ColumnName":
-								column.ColumnName = columnMatch[j]
-							case "DataType":
-								column.DataType = parseDataType(columnMatch[j])
-							case "NonNullable":
-								column.IsNullable = column.IsNullable && columnMatch[j] == ""
-							case "PrimaryKey":
-								column.IsPrimary = columnMatch[j] != ""
-							case "Unique":
-								column.IsUnique = columnMatch[j] != ""
-							}
+				for _, columnMatch := range columnMatches {
+					var column TableSchemaColumn
+					column.IsNullable = true
+					for j, cname := range columnNames {
+						switch cname {
+						case "ColumnName":
+							column.ColumnName = columnMatch[j]
+						case "DataType":
+							column.DataType = parseDataType(columnMatch[j])
+						case "NonNullable":
+							column.IsNullable = column.IsNullable && columnMatch[j] == ""
+						case "PrimaryKey":
+							column.IsPrimary = columnMatch[j] != ""
+						case "Unique":
+							column.IsUnique = columnMatch[j] != ""
 						}
-						schema.Columns = append(schema.Columns, column)
 					}
+					schema.Columns[column.ColumnName] = column
 				}
 			}
 		}
