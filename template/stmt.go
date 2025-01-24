@@ -38,6 +38,8 @@ func ExportMetrics() string {
 	return res
 }
 
+var _ driver.Stmt = &CustomCacheStatement{}
+
 type CustomCacheStatement struct {
 	inner    driver.Stmt
 	rawQuery string

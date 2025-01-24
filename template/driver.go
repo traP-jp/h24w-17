@@ -47,6 +47,8 @@ func init() {
 	}
 }
 
+var _ driver.Driver = CacheDriver{}
+
 type CacheDriver struct{}
 
 func (d CacheDriver) Open(dsn string) (driver.Conn, error) {
@@ -64,6 +66,13 @@ func (d CacheDriver) Open(dsn string) (driver.Conn, error) {
 	}
 	return &CacheConn{inner: conn}, nil
 }
+
+var (
+	_ driver.Conn           = &CacheConn{}
+	_ driver.ConnBeginTx    = &CacheConn{}
+	_ driver.Pinger         = &CacheConn{}
+	_ driver.QueryerContext = &CacheConn{}
+)
 
 type CacheConn struct {
 	inner driver.Conn
@@ -111,6 +120,15 @@ func (c *CacheConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.
 	}
 	return c.inner.Begin()
 }
+
+func (c *CacheConn) Ping(ctx context.Context) error {
+	if i, ok := c.inner.(driver.Pinger); ok {
+		return i.Ping(ctx)
+	}
+	return nil
+}
+
+var _ driver.Rows = &CacheRows{}
 
 type CacheRows struct {
 	inner   driver.Rows
