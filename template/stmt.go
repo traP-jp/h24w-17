@@ -175,6 +175,8 @@ func cacheKey(args []driver.Value) string {
 }
 
 func replaceFn(ctx context.Context, key string) (*CacheRows, error) {
+	var res *CacheRows
+
 	queryerCtx, ok := ctx.Value(queryerCtxKey{}).(driver.QueryerContext)
 	if ok {
 		query := ctx.Value(queryKey{}).(string)
@@ -183,16 +185,20 @@ func replaceFn(ctx context.Context, key string) (*CacheRows, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewCachedRows(rows), nil
+		res = NewCachedRows(rows)
+	} else {
+		stmt := ctx.Value(stmtKey{}).(*CustomCacheStatement)
+		args := ctx.Value(argsKey{}).([]driver.Value)
+		rows, err := stmt.inner.Query(args)
+		if err != nil {
+			return nil, err
+		}
+		res = NewCachedRows(rows)
 	}
 
-	stmt := ctx.Value(stmtKey{}).(*CustomCacheStatement)
-
-	args := ctx.Value(argsKey{}).([]driver.Value)
-	rows, err := stmt.inner.Query(args)
-	if err != nil {
+	if err := res.createCache(); err != nil {
 		return nil, err
 	}
 
-	return NewCachedRows(rows), nil
+	return res, nil
 }
