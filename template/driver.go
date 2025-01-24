@@ -17,8 +17,12 @@ import (
 
 var queryMap = make(map[string]domains.CachePlanQuery)
 
+var tableSchema = make(map[string]domains.TableSchema)
+
 // TODO: generate
 const cachePlanRaw = ``
+
+const schemaRaw = ``
 
 func init() {
 	sql.Register("mysql+cache", CacheDriver{})
@@ -43,7 +47,15 @@ func init() {
 	}
 
 	for _, cache := range caches {
-		cacheByTable[cache.info.Table] = append(cacheByTable[cache.info.Table], cache.cache)
+		cacheByTable[cache.info.Table] = append(cacheByTable[cache.info.Table], cache)
+	}
+
+	schema, err := domains.LoadTableSchema(schemaRaw)
+	if err != nil {
+		panic(err)
+	}
+	for _, table := range schema {
+		tableSchema[table.TableName] = table
 	}
 }
 
