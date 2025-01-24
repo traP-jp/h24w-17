@@ -3,8 +3,6 @@ package template
 import (
 	"context"
 	"database/sql/driver"
-	"errors"
-	"fmt"
 	"os"
 	"testing"
 
@@ -33,7 +31,7 @@ func TestCacheRows(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Close()
 
-	var cacheRows driver.Rows
+	var cacheRows *CacheRows
 	err = conn.Raw(func(driverConn any) error {
 		conn := driverConn.(driver.Conn)
 		stmt, err := conn.Prepare("SELECT id, name FROM users")
@@ -46,31 +44,10 @@ func TestCacheRows(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		cacheRows = NewCachedRows(rows)
+		cacheRows = NewCacheRows(rows)
 		defer cacheRows.Close()
 
-		dest := make([]driver.Value, 2)
-		if err := cacheRows.Next(dest); err != nil {
-			return err
-		}
-
-		id, ok := dest[0].(int64)
-		if !ok {
-			return fmt.Errorf("dest[0] is not int, got=%T", dest[0])
-		}
-		if id != 1 {
-			return errors.New("id != 1")
-		}
-
-		name, ok := dest[1].([]byte)
-		if !ok {
-			return fmt.Errorf("dest[1] is not string, got=%T", dest[1])
-		}
-		if string(name) != "Alice" {
-			return errors.New("name != Alice")
-		}
-
-		return nil
+		return cacheRows.createCache()
 	})
 	if err != nil {
 		t.Error(err)

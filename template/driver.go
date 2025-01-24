@@ -153,7 +153,7 @@ func (r *CacheRows) Clone() *CacheRows {
 	}
 }
 
-func NewCachedRows(inner driver.Rows) *CacheRows {
+func NewCacheRows(inner driver.Rows) *CacheRows {
 	return &CacheRows{inner: inner}
 }
 
@@ -208,7 +208,6 @@ func (r *CacheRows) Close() error {
 		r.rows.reset()
 		return nil
 	}
-	r.cached = true
 	return r.inner.Close()
 }
 
@@ -242,5 +241,21 @@ func (r *CacheRows) Next(dest []driver.Value) error {
 	}
 	r.rows.append(cachedRow)
 
+	return nil
+}
+
+func (r *CacheRows) createCache() error {
+	columns := r.Columns()
+	dest := make([]driver.Value, len(columns))
+	for {
+		err := r.Next(dest)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+	}
+	r.Close()
 	return nil
 }
