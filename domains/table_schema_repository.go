@@ -5,14 +5,16 @@ import (
 	"strings"
 )
 
-var tableDefRegex = regexp.MustCompile(`(?s)CREATE TABLE ` + "`?" + `(?P<TableName>\w+)` + "`?" + ` \((?P<Columns>.*?)\);`)
-var columnDefRegex = regexp.MustCompile(`^` + "`?" + `(?P<ColumnName>\w+)` + "`?" + `\s+(?P<DataType>\w+(?:\([^)]*\))?)(?:(?P<AutoIncrement>\s+AUTO_INCREMENT)|(?P<Unique>\s+UNIQUE)|(?P<PrimaryKey>\s+PRIMARY KEY)|(?P<NonNullable>\s+NOT NULL))*$`)
-var primaryKeyRegex = regexp.MustCompile(`^PRIMARY KEY \(` + "`?" + `(?P<ColumnName>\w+)` + "`?" + `\)$`)
-var uniqueRegex = regexp.MustCompile(`^UNIQUE(?: KEY)?\s+(?:` + "`?" + `\w+` + "`?" + `\s+)?\(` + "`?" + `(?P<ColumnName>\w+)` + "`?" + `\)$`)
+var commentRegex = regexp.MustCompile("(?m)--.*$")
+var tableDefRegex = regexp.MustCompile("(?s)CREATE TABLE `?(?P<TableName>\\w+)`? \\((?P<Columns>.*?)\\)[^\\n]*;")
+var columnDefRegex = regexp.MustCompile("^`?(?P<ColumnName>\\w+)`?\\s+(?P<DataType>\\w+(?:\\([^)]*\\))?)(?:(?P<AutoIncrement>\\s+AUTO_INCREMENT)|(?P<Unique>\\s+UNIQUE)|(?P<PrimaryKey>\\s+PRIMARY KEY)|(?P<NonNullable>\\s+NOT NULL)|(?P<Default>\\s+DEFAULT [^\\s]+))*$")
+var primaryKeyRegex = regexp.MustCompile("^PRIMARY KEY \\(`?(?P<ColumnName>\\w+)`?\\)$")
+var uniqueRegex = regexp.MustCompile("^UNIQUE(?: KEY)?\\s+(?:`?\\w+`?\\s+)?\\(`?(?P<ColumnName>\\w+)`?\\)$")
 
 func LoadTableSchema(sql string) ([]TableSchema, error) {
 	var tableSchemas []TableSchema
 
+	sql = commentRegex.ReplaceAllString(sql, "")
 	tableMatches := tableDefRegex.FindAllStringSubmatch(sql, -1)
 	tableNames := tableDefRegex.SubexpNames()
 
@@ -91,13 +93,13 @@ func parseDataType(sqlType string) TableSchemaDataType {
 	switch sqlType {
 	case "varchar", "text":
 		return TableSchemaDataType_STRING
-	case "longblob":
+	case "longblob", "mediumblob", "blob":
 		return TableSchemaDataType_BYTES
-	case "int":
+	case "int", "tinyint":
 		return TableSchemaDataType_INT
 	case "bigint":
 		return TableSchemaDataType_INT64
-	case "time", "date", "datetime":
+	case "time", "date", "datetime", "timestamp":
 		return TableSchemaDataType_DATETIME
 	default:
 		return TableSchemaDataType_UNKNOWN
