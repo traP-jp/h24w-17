@@ -19,10 +19,14 @@ func TestNormalizeArgs(t *testing.T) {
 			},
 		},
 		{
-			query: "SELECT * FROM `table` WHERE `id` = 1;",
+			query: "SELECT * FROM `table` WHERE `id` = 1  LIMIT 1 OFFSET 0;",
 			expected: NormalizedArgs{
-				Query:     "SELECT * FROM `table` WHERE `id` = ?;",
-				ExtraArgs: []ExtraArg{{Column: "id", Value: 1}},
+				Query: "SELECT * FROM `table` WHERE `id` = ? LIMIT ? OFFSET ?;",
+				ExtraArgs: []ExtraArg{
+					{Column: "id", Value: 1},
+					{Column: "LIMIT()", Value: 1},
+					{Column: "OFFSET()", Value: 0},
+				},
 			},
 		},
 		{
@@ -58,6 +62,14 @@ func TestNormalizeArgs(t *testing.T) {
 					{Column: "id", Value: 1},
 					{Column: "id", Value: 3},
 				},
+			},
+		},
+		{
+			query: "UPDATE table SET age = 18 WHERE `id` IN (1, ?, ?);",
+			expected: NormalizedArgs{
+				Query:     "UPDATE `table` SET `age` = ? WHERE `id` IN (?, ?, ?);",
+				ExtraSets: []ExtraArg{{Column: "age", Value: 18}},
+				ExtraArgs: []ExtraArg{{Column: "id", Value: 1}},
 			},
 		},
 	}
