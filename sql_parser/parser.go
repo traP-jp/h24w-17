@@ -353,11 +353,10 @@ func (p *parser) selectValue() (SQLNode, error) {
 func (p *parser) selectAlias() (SQLNode, error) {
 	// alias is not used
 	if p.expect(token{Type: tokenType_RESERVED, Literal: "AS"}) {
-		alias, err := p.column()
+		_, err := p.column()
 		if err != nil {
 			return nil, fmt.Errorf("<select-alias> %v", err)
 		}
-		fmt.Printf("alias: %v\n", alias)
 		return nil, nil
 	} else {
 		p.column()
