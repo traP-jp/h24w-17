@@ -48,7 +48,6 @@ type CustomCacheStatement struct {
 	rawQuery string
 	// query is the normalized query
 	query     string
-	extraArgs []normalizer.ExtraArg
 	queryInfo domains.CachePlanQuery
 }
 
@@ -199,7 +198,7 @@ func (s *CustomCacheStatement) inQuery(args []driver.Value) (driver.Rows, error)
 }
 
 func (c *CacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []driver.NamedValue) (driver.Rows, error) {
-	normalized, err := normalizer.NormalizeQuery(rawQuery)
+	normalizedQuery, err := normalizer.NormalizeQuery(rawQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +208,7 @@ func (c *CacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []
 		return nil, driver.ErrSkip
 	}
 
-	queryInfo, ok := queryMap[normalized.Query]
+	queryInfo, ok := queryMap[normalizedQuery]
 	if !ok {
 		return inner.QueryContext(ctx, rawQuery, nvargs)
 	}
@@ -245,12 +244,12 @@ func (c *CacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []
 func (c *CacheConn) inQuery(ctx context.Context, query string, args []driver.NamedValue, inner driver.QueryerContext) (driver.Rows, error) {
 	// "SELECT * FROM table WHERE pk IN (?, ?, ...)"
 	// separate the query into multiple queries and merge the results
-	normalized, err := normalizer.NormalizeQuery(query)
+	normalizedQuery, err := normalizer.NormalizeQuery(query)
 	if err != nil {
 		return nil, err
 	}
 
-	queryInfo := queryMap[normalized.Query]
+	queryInfo := queryMap[normalizedQuery]
 	table := queryInfo.Select.Table
 	pkIndex := queryInfo.Select.Conditions[0].Placeholder.Index
 	pkValues := args[pkIndex:]

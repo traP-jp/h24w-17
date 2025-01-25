@@ -97,12 +97,12 @@ type CacheConn struct {
 }
 
 func (c *CacheConn) Prepare(rawQuery string) (driver.Stmt, error) {
-	normalized, err := normalizer.NormalizeQuery(rawQuery)
+	normalizedQuery, err := normalizer.NormalizeQuery(rawQuery)
 	if err != nil {
 		return nil, err
 	}
 
-	queryInfo, ok := queryMap[normalized.Query]
+	queryInfo, ok := queryMap[normalizedQuery]
 	if !ok {
 		return c.inner.Prepare(rawQuery)
 	}
@@ -119,8 +119,7 @@ func (c *CacheConn) Prepare(rawQuery string) (driver.Stmt, error) {
 		inner:     innerStmt,
 		conn:      c,
 		rawQuery:  rawQuery,
-		query:     normalized.Query,
-		extraArgs: normalized.ExtraArgs,
+		query:     normalizedQuery,
 		queryInfo: queryInfo,
 	}, nil
 }
