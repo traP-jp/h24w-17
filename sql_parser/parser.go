@@ -326,12 +326,32 @@ func (p *parser) selectValue() (SQLNode, error) {
 		}
 	}
 
-	v, err := p.column()
+	v, err := p.selectColumn()
 	if err == nil {
 		return SelectValueColumnNode{Column: v}, nil
 	}
 
 	return nil, fmt.Errorf("<select-value> got unexpected token %v", t.String())
+}
+
+func (p *parser) selectColumn() (ColumnNode, error) {
+	column, err := p.column()
+	if err != nil {
+		return ColumnNode{}, fmt.Errorf("<select-column> %v", err)
+	}
+
+	if p.expect(token{Type: tokenType_RESERVED, Literal: "AS"}) {
+		// alias is not used
+		_, err := p.column()
+		if err != nil {
+			return ColumnNode{}, fmt.Errorf("<select-column> %v", err)
+		}
+	} else {
+		// alias is not used
+		p.column()
+	}
+
+	return column, nil
 }
 
 func (p *parser) updateStmt() (UpdateStmtNode, error) {
@@ -677,6 +697,7 @@ func (p *parser) column() (ColumnNode, error) {
 		return ColumnNode{Name: t.Literal}, nil
 	}
 	if p.expect(token{Type: tokenType_SYMBOL, Literal: "`"}) {
+		t := p.consume()
 		if t.Type != tokenType_IDENTIFIER {
 			return ColumnNode{}, fmt.Errorf("<column> expected <identifier>, got %v", t.String())
 		}

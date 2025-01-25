@@ -28,6 +28,33 @@ func TestParser(t *testing.T) {
 			},
 		},
 		{
+			name: "SELECT id AS id_alt, name `name_alt` FROM users;",
+			input: []token{
+				{Type: tokenType_RESERVED, Literal: "SELECT"},
+				{Type: tokenType_IDENTIFIER, Literal: "id"},
+				{Type: tokenType_RESERVED, Literal: "AS"},
+				{Type: tokenType_IDENTIFIER, Literal: "id_alt"},
+				{Type: tokenType_SYMBOL, Literal: ","},
+				{Type: tokenType_IDENTIFIER, Literal: "name"},
+				{Type: tokenType_SYMBOL, Literal: "`"},
+				{Type: tokenType_IDENTIFIER, Literal: "name_alt"},
+				{Type: tokenType_SYMBOL, Literal: "`"},
+				{Type: tokenType_RESERVED, Literal: "FROM"},
+				{Type: tokenType_IDENTIFIER, Literal: "users"},
+				{Type: tokenType_SYMBOL, Literal: ";"},
+				{Type: tokenType_EOF, Literal: ""},
+			},
+			expected: SelectStmtNode{
+				Values: SelectValuesNode{
+					Values: []SQLNode{
+						SelectValueColumnNode{Column: ColumnNode{Name: "id"}},
+						SelectValueColumnNode{Column: ColumnNode{Name: "name"}},
+					},
+				},
+				Table: TableNode{Name: "users"},
+			},
+		},
+		{
 			name: "SELECT * FROM users WHERE id = ?",
 			input: []token{
 				{Type: tokenType_RESERVED, Literal: "SELECT"},

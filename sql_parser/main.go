@@ -6,6 +6,7 @@ import "fmt"
 // <select-stmt> := SELECT <select-values> FROM <table> [WHERE <conditions>] [ORDER BY <orders>] [LIMIT <limit>] [OFFSET <offset>] ;
 // <select-values> := <select-value> [, <select-values>]
 // <select-value> := <column> | COUNT(<select-value>) | SUM(<select-value>) | AVG(<select-value>) | MIN(<select-value>) | MAX(<select-value>) | *
+// <select-column> := <column> [[AS] <column>]
 // <update-stmt> := UPDATE <table> SET <update-sets> [WHERE <conditions>] [ORDER BY <orders>] [LIMIT <limit>] [OFFSET <offset>] ;
 // <update-sets> := <column> = <value> [, <update-sets>]
 // <delete-stmt> := DELETE FROM <table> [WHERE <conditions>] [ORDER BY <orders>] [LIMIT <limit>] [OFFSET <offset>] ;
