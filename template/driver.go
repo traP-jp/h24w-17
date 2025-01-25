@@ -258,7 +258,7 @@ func (r *CacheRows) Next(dest []driver.Value) error {
 	cachedRow := make(row, len(dest))
 	for i := 0; i < len(dest); i++ {
 		switch v := dest[i].(type) {
-		case int64, float64, string, bool, time.Time, nil: // no need to copy
+		case int64, uint64, float64, string, bool, time.Time, nil: // no need to copy
 			cachedRow[i] = v
 		case []byte: // copy to prevent mutation
 			data := make([]byte, len(v))
