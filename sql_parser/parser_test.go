@@ -335,6 +335,29 @@ func TestParser(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "SELECT 1 FROM users WHERE account_name = ?",
+			input: []token{
+				{Type: tokenType_RESERVED, Literal: "SELECT"},
+				{Type: tokenType_NUMBER, Literal: "1"},
+				{Type: tokenType_RESERVED, Literal: "FROM"},
+				{Type: tokenType_IDENTIFIER, Literal: "users"},
+				{Type: tokenType_RESERVED, Literal: "WHERE"},
+				{Type: tokenType_IDENTIFIER, Literal: "account_name"},
+				{Type: tokenType_SYMBOL, Literal: "="},
+				{Type: tokenType_SYMBOL, Literal: "?"},
+				{Type: tokenType_EOF, Literal: ""},
+			},
+			expected: SelectStmtNode{
+				Values: SelectValuesNode{Values: []SQLNode{NumberNode{Value: 1}}},
+				Table:  TableNode{Name: "users"},
+				Conditions: &ConditionsNode{
+					Conditions: []ConditionNode{
+						{Column: ColumnNode{Name: "account_name"}, Operator: OperatorNode{Operator: Operator_EQ}, Value: PlaceholderNode{}},
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
