@@ -48,13 +48,24 @@ func init() {
 
 		if query.Select.Cache {
 			conditions := query.Select.Conditions
-			pk := retrievePrimaryKey(query.Select.Table)
-			pkOnly := len(conditions) == 1 && conditions[0].Column == pk && conditions[0].Operator == domains.CachePlanOperator_EQ
+			if len(conditions) == 1 {
+				condition := conditions[0]
+				column := tableSchema[query.Select.Table].Columns[condition.Column]
+				if (column.IsPrimary || column.IsUnique) && condition.Operator == domains.CachePlanOperator_EQ {
+					caches[query.Query] = cacheWithInfo{
+						query:      query.Query,
+						info:       *query.Select,
+						cache:      sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
+						uniqueOnly: true,
+					}
+					continue
+				}
+			}
 			caches[query.Query] = cacheWithInfo{
-				query:  query.Query,
-				info:   *query.Select,
-				cache:  sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
-				pkOnly: pkOnly,
+				query:      query.Query,
+				info:       *query.Select,
+				cache:      sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
+				uniqueOnly: false,
 			}
 		}
 

@@ -20,10 +20,10 @@ type (
 )
 
 type cacheWithInfo struct {
-	query  string
-	info   domains.CachePlanSelectQuery
-	pkOnly bool // if true, query is like "SELECT * FROM table WHERE pk = ?"
-	cache  *sc.Cache[string, *CacheRows]
+	query      string
+	info       domains.CachePlanSelectQuery
+	uniqueOnly bool // if true, query is like "SELECT * FROM table WHERE pk = ?"
+	cache      *sc.Cache[string, *CacheRows]
 }
 
 // NOTE: no write happens to this map, so it's safe to use in concurrent environment
@@ -75,7 +75,7 @@ func (s *CustomCacheStatement) execInsert(args []driver.Value) (driver.Result, e
 	table := s.queryInfo.Insert.Table
 	// TODO: support composite primary key and other unique key
 	for _, cache := range cacheByTable[table] {
-		if cache.pkOnly {
+		if cache.uniqueOnly {
 			// no need to purge
 		} else {
 			cache.cache.Purge()
@@ -87,11 +87,15 @@ func (s *CustomCacheStatement) execInsert(args []driver.Value) (driver.Result, e
 func (s *CustomCacheStatement) execUpdate(args []driver.Value) (driver.Result, error) {
 	// TODO: support composite primary key and other unique key
 	table := s.queryInfo.Update.Table
-	pk := retrievePrimaryKey(table)
 
 	// if query is like "UPDATE table SET ... WHERE pk = ?"
-	updateByPk := len(s.queryInfo.Update.Conditions) == 1 && s.queryInfo.Update.Conditions[0].Column == pk
-	if !updateByPk {
+	var updateByUnique bool
+	if len(s.queryInfo.Update.Conditions) == 1 {
+		condition := s.queryInfo.Update.Conditions[0]
+		column := tableSchema[table].Columns[condition.Column]
+		updateByUnique = (column.IsPrimary || column.IsUnique) && condition.Operator == domains.CachePlanOperator_EQ
+	}
+	if !updateByUnique {
 		// we should purge all cache
 		for _, cache := range cacheByTable[table] {
 			cache.cache.Purge()
@@ -102,7 +106,7 @@ func (s *CustomCacheStatement) execUpdate(args []driver.Value) (driver.Result, e
 	pkValue := args[s.queryInfo.Update.Conditions[0].Placeholder.Index]
 
 	for _, cache := range cacheByTable[table] {
-		if cache.pkOnly {
+		if cache.uniqueOnly {
 			// we should forget the cache
 			cache.cache.Forget(cacheKey([]driver.Value{pkValue}))
 		} else {
@@ -115,11 +119,15 @@ func (s *CustomCacheStatement) execUpdate(args []driver.Value) (driver.Result, e
 
 func (s *CustomCacheStatement) execDelete(args []driver.Value) (driver.Result, error) {
 	table := s.queryInfo.Delete.Table
-	pk := retrievePrimaryKey(table)
 
-	// if query is like "DELETE FROM table WHERE pk = ?"
-	deleteByPk := len(s.queryInfo.Delete.Conditions) == 1 && s.queryInfo.Delete.Conditions[0].Column == pk
-	if !deleteByPk {
+	// if query is like "DELETE FROM table WHERE unique = ?"
+	var deleteByUnique bool
+	if len(s.queryInfo.Delete.Conditions) == 1 {
+		condition := s.queryInfo.Delete.Conditions[0]
+		column := tableSchema[table].Columns[condition.Column]
+		deleteByUnique = (column.IsPrimary || column.IsUnique) && condition.Operator == domains.CachePlanOperator_EQ
+	}
+	if !deleteByUnique {
 		// we should purge all cache
 		for _, cache := range cacheByTable[table] {
 			cache.cache.Purge()
@@ -130,7 +138,7 @@ func (s *CustomCacheStatement) execDelete(args []driver.Value) (driver.Result, e
 	pkValue := args[s.queryInfo.Delete.Conditions[0].Placeholder.Index]
 
 	for _, cache := range cacheByTable[table] {
-		if cache.pkOnly {
+		if cache.uniqueOnly {
 			// query like "SELECT * FROM table WHERE pk = ?"
 			// we should forget the cache
 			cache.cache.Forget(cacheKey([]driver.Value{pkValue}))
@@ -327,13 +335,4 @@ func replaceFn(ctx context.Context, key string) (*CacheRows, error) {
 	}
 
 	return res.Clone(), nil
-}
-
-func retrievePrimaryKey(table string) string {
-	for name, col := range tableSchema[table].Columns {
-		if col.IsPrimary {
-			return name
-		}
-	}
-	return ""
 }
