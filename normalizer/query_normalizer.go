@@ -23,12 +23,12 @@ func NormalizedQuery(query string) (string, error) {
 }
 
 func transform(node sql_parser.SQLNode) (out sql_parser.SQLNode, err error) {
-	// defer func() {
-	// 	if r := recover(); r != nil {
-	// 		out = node
-	// 		err = fmt.Errorf("panic: %v", r)
-	// 	}
-	// }()
+	defer func() {
+		if r := recover(); r != nil {
+			out = node
+			err = fmt.Errorf("panic: %v", r)
+		}
+	}()
 
 	switch n := node.(type) {
 	case sql_parser.SelectStmtNode:
