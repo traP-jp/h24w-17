@@ -37,7 +37,7 @@ func ParseSQL(sql string) (SQLNode, error) {
 	parser := NewParser(tokens)
 	node, err := parser.Parse()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse: %w", err)
+		return nil, fmt.Errorf("failed to parse SQL \"%s\" -> %w", sql, err)
 	}
 	return node, nil
 }
