@@ -81,7 +81,7 @@ func (s *customCacheStatement) Exec(args []driver.Value) (driver.Result, error) 
 func (s *customCacheStatement) execInsert(args []driver.Value) (driver.Result, error) {
 	table := s.queryInfo.Insert.Table
 
-	rows := slices.Chunk(args, len(s.queryInfo.Insert.Targets))
+	rows := slices.Chunk(args, len(s.queryInfo.Insert.Columns))
 	// TODO: support composite primary key and other unique key
 	for _, cache := range cacheByTable[table] {
 		if cache.uniqueOnly {
@@ -99,7 +99,7 @@ func (s *customCacheStatement) execInsert(args []driver.Value) (driver.Result, e
 
 		selectCondition := selectConditions[0]
 		var forgotten = false
-		for i, target := range s.queryInfo.Insert.Targets {
+		for i, target := range s.queryInfo.Insert.Columns {
 			if selectCondition.Column == target {
 				// forget the cache
 				for row := range rows {
