@@ -30,6 +30,7 @@ func normalizeSQLNode(node sql_parser.SQLNode) (out sql_parser.SQLNode, err erro
 		}
 	}()
 
+	// TODO: generalize select, update, and delete statements
 	switch n := node.(type) {
 	case sql_parser.SelectStmtNode:
 		if n.Conditions == nil {
