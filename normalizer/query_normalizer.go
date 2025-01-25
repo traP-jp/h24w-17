@@ -1,6 +1,9 @@
 package normalizer
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 // IN (?, ?, ?) -> IN (?)
 // VALUES (?, ?, ?) -> VALUES (?)
@@ -11,5 +14,8 @@ var valuesRegex = regexp.MustCompile(`VALUES\s+\((\?,\s*)+\?\)`)
 func NormalizeQuery(query string) string {
 	query = inRegex.ReplaceAllString(query, "IN (?)")
 	query = valuesRegex.ReplaceAllString(query, "VALUES (?)")
+	if !strings.HasSuffix(query, ";") {
+		query += ";"
+	}
 	return query
 }
