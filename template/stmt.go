@@ -72,13 +72,7 @@ func (s *CustomCacheStatement) Exec(args []driver.Value) (driver.Result, error) 
 func (s *CustomCacheStatement) execInsert(args []driver.Value) (driver.Result, error) {
 	table := s.queryInfo.Insert.Table
 	// TODO: support composite primary key and other unique key
-	var pk string
-	for name, col := range tableSchema[table].Columns {
-		if col.IsPrimary {
-			pk = name
-			break
-		}
-	}
+	pk := retrievePrimaryKey(table)
 	for _, cache := range cacheByTable[table] {
 		if len(cache.info.Conditions) == 1 && cache.info.Conditions[0].Column == pk {
 			// query like "SELECT * FROM table WHERE pk = ?"
@@ -91,19 +85,61 @@ func (s *CustomCacheStatement) execInsert(args []driver.Value) (driver.Result, e
 }
 
 func (s *CustomCacheStatement) execUpdate(args []driver.Value) (driver.Result, error) {
-	// TODO: purge only necessary cache
+	// TODO: support composite primary key and other unique key
 	table := s.queryInfo.Update.Table
-	for _, cache := range cacheByTable[table] {
-		cache.cache.Purge()
+	pk := retrievePrimaryKey(table)
+
+	// if query is like "UPDATE table SET ... WHERE pk = ?"
+	updateByPk := len(s.queryInfo.Update.Conditions) == 1 && s.queryInfo.Update.Conditions[0].Column == pk
+	if !updateByPk {
+		// we should purge all cache
+		for _, cache := range cacheByTable[table] {
+			cache.cache.Purge()
+		}
+		return s.inner.Exec(args)
 	}
+
+	pkValue := args[s.queryInfo.Update.Conditions[0].Placeholder.Index]
+
+	for _, cache := range cacheByTable[table] {
+		if len(cache.info.Conditions) == 1 && cache.info.Conditions[0].Column == pk {
+			// query like "SELECT * FROM table WHERE pk = ?"
+			// we should forget the cache
+			cache.cache.Forget(cacheKey([]driver.Value{pkValue}))
+		} else {
+			cache.cache.Purge()
+		}
+	}
+
 	return s.inner.Exec(args)
 }
 
 func (s *CustomCacheStatement) execDelete(args []driver.Value) (driver.Result, error) {
 	table := s.queryInfo.Delete.Table
-	for _, cache := range cacheByTable[table] {
-		cache.cache.Purge()
+	pk := retrievePrimaryKey(table)
+
+	// if query is like "DELETE FROM table WHERE pk = ?"
+	deleteByPk := len(s.queryInfo.Delete.Conditions) == 1 && s.queryInfo.Delete.Conditions[0].Column == pk
+	if !deleteByPk {
+		// we should purge all cache
+		for _, cache := range cacheByTable[table] {
+			cache.cache.Purge()
+		}
+		return s.inner.Exec(args)
 	}
+
+	pkValue := args[s.queryInfo.Delete.Conditions[0].Placeholder.Index]
+
+	for _, cache := range cacheByTable[table] {
+		if len(cache.info.Conditions) == 1 && cache.info.Conditions[0].Column == pk {
+			// query like "SELECT * FROM table WHERE pk = ?"
+			// we should forget the cache
+			cache.cache.Forget(cacheKey([]driver.Value{pkValue}))
+		} else {
+			cache.cache.Purge()
+		}
+	}
+
 	return s.inner.Exec(args)
 }
 
@@ -148,11 +184,10 @@ func (c *CacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []
 	}
 
 	cache := caches[queryInfo.Query].cache
-	cacheKey := cacheKey(args)
 	cachectx := context.WithValue(ctx, namedArgsKey{}, nvargs)
 	cachectx = context.WithValue(cachectx, queryerCtxKey{}, inner)
 	cachectx = context.WithValue(cachectx, queryKey{}, rawQuery)
-	rows, err := cache.Get(cachectx, cacheKey)
+	rows, err := cache.Get(cachectx, cacheKey(args))
 	if err != nil {
 		return nil, err
 	}
@@ -214,4 +249,13 @@ func replaceFn(ctx context.Context, key string) (*CacheRows, error) {
 	}
 
 	return res, nil
+}
+
+func retrievePrimaryKey(table string) string {
+	for name, col := range tableSchema[table].Columns {
+		if col.IsPrimary {
+			return name
+		}
+	}
+	return ""
 }
