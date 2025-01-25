@@ -27,6 +27,14 @@ const schemaRaw = ``
 func init() {
 	sql.Register("mysql+cache", CacheDriver{})
 
+	schema, err := domains.LoadTableSchema(schemaRaw)
+	if err != nil {
+		panic(err)
+	}
+	for _, table := range schema {
+		tableSchema[table.TableName] = table
+	}
+
 	plan, err := domains.LoadCachePlan(strings.NewReader(cachePlanRaw))
 	if err != nil {
 		panic(err)
@@ -39,23 +47,21 @@ func init() {
 		}
 
 		if query.Select.Cache {
+			conditions := query.Select.Conditions
+			pk := retrievePrimaryKey(query.Select.Table)
+			pkOnly := len(conditions) == 1 && conditions[0].Column == pk && conditions[0].Operator == domains.CachePlanOperator_EQ
 			caches[query.Query] = cacheWithInfo{
-				info:  *query.Select,
-				cache: sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
+				info:   *query.Select,
+				cache:  sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
+				pkOnly: pkOnly,
 			}
 		}
+
+		// TODO: if query is like "SELECT * FROM WHERE pk IN (?, ?, ...)", generate cache with query "SELECT * FROM table WHERE pk = ?"
 	}
 
 	for _, cache := range caches {
 		cacheByTable[cache.info.Table] = append(cacheByTable[cache.info.Table], cache)
-	}
-
-	schema, err := domains.LoadTableSchema(schemaRaw)
-	if err != nil {
-		panic(err)
-	}
-	for _, table := range schema {
-		tableSchema[table.TableName] = table
 	}
 }
 
@@ -111,6 +117,7 @@ func (c *CacheConn) Prepare(rawQuery string) (driver.Stmt, error) {
 	}
 	return &CustomCacheStatement{
 		inner:     innerStmt,
+		conn:      c,
 		rawQuery:  rawQuery,
 		query:     normalized.Query,
 		extraArgs: normalized.ExtraArgs,
@@ -182,8 +189,8 @@ func (r sliceRows) clone() sliceRows {
 	return sliceRows{rows: rows}
 }
 
-func (r *sliceRows) append(row row) {
-	r.rows = append(r.rows, row)
+func (r *sliceRows) append(row ...row) {
+	r.rows = append(r.rows, row...)
 }
 
 func (r *sliceRows) reset() {
@@ -256,7 +263,29 @@ func (r *CacheRows) Next(dest []driver.Value) error {
 	return nil
 }
 
+func mergeCachedRows(rows []*CacheRows) *CacheRows {
+	if len(rows) == 0 {
+		return nil
+	}
+	if len(rows) == 1 {
+		return rows[0]
+	}
+
+	mergedSlice := sliceRows{}
+	for _, r := range rows {
+		mergedSlice.append(r.rows.rows...)
+	}
+
+	return &CacheRows{
+		cached:  true,
+		columns: rows[0].columns,
+		rows:    mergedSlice,
+	}
+}
+
 func (r *CacheRows) createCache() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	columns := r.Columns()
 	dest := make([]driver.Value, len(columns))
 	for {
