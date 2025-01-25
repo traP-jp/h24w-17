@@ -73,13 +73,16 @@ type CachePlanUpdateQuery struct {
 	Table      string                  `yaml:"table"`
 	Targets    []CachePlanUpdateTarget `yaml:"targets"`
 	Conditions []CachePlanCondition    `yaml:"conditions,omitempty"`
+	Orders     []CachePlanOrder        `yaml:"orders,omitempty"`
 }
 
 type CachePlanDeleteQuery struct {
 	Table      string               `yaml:"table"`
 	Conditions []CachePlanCondition `yaml:"conditions,omitempty"`
+	Orders     []CachePlanOrder     `yaml:"orders,omitempty"`
 }
 
 type CachePlanInsertQuery struct {
-	Table string `yaml:"table"`
+	Table   string   `yaml:"table"`
+	Columns []string `yaml:"columns"`
 }
