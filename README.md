@@ -60,6 +60,11 @@ type Condition = {
   placeholder: Placeholder
 }
 
+type Order = {
+  column: string
+  order: 'asc' | 'desc'
+}
+
 type SelectQuery = CachableSelectQuery | NonCachableSelectQuery
 
 type CachableSelectQuery = {
@@ -69,10 +74,7 @@ type CachableSelectQuery = {
   table: string
   targets: string[]
   conditions: Condition[]
-  orders: {
-    column: string
-    order: 'asc' | 'desc'
-  }[]
+  orders: Order[]
 }
 
 type NonCachableSelectQuery = {
@@ -87,6 +89,7 @@ type UpdateQuery = {
   table: string
   targets: string[]
   conditions: Condition[]
+  orders: Order[]
 }
 
 type DeleteQuery = {
@@ -94,6 +97,7 @@ type DeleteQuery = {
   query: string
   table: string
   conditions: Condition[]
+  orders: Order[]
 }
 
 type InsertQuery = {
