@@ -44,7 +44,7 @@ func TestParser(t *testing.T) {
 			expected: SelectStmtNode{
 				Values: SelectValuesNode{Values: []SQLNode{SelectValueAsteriskNode{}}},
 				Table:  TableNode{Name: "users"},
-				Conditions: ConditionsNode{
+				Conditions: &ConditionsNode{
 					Conditions: []ConditionNode{
 						{
 							Column:   ColumnNode{Name: "id"},
@@ -81,7 +81,7 @@ func TestParser(t *testing.T) {
 					SelectValueColumnNode{Column: ColumnNode{Name: "age"}},
 				}},
 				Table: TableNode{Name: "users"},
-				Conditions: ConditionsNode{
+				Conditions: &ConditionsNode{
 					Conditions: []ConditionNode{
 						{
 							Column:   ColumnNode{Name: "age"},
@@ -120,7 +120,7 @@ func TestParser(t *testing.T) {
 			expected: SelectStmtNode{
 				Values: SelectValuesNode{Values: []SQLNode{SelectValueAsteriskNode{}}},
 				Table:  TableNode{Name: "users"},
-				Conditions: ConditionsNode{
+				Conditions: &ConditionsNode{
 					Conditions: []ConditionNode{
 						{
 							Column:   ColumnNode{Name: "id"},
@@ -162,7 +162,7 @@ func TestParser(t *testing.T) {
 			expected: SelectStmtNode{
 				Values: SelectValuesNode{Values: []SQLNode{SelectValueFunctionNode{Name: "COUNT", Value: SelectValueAsteriskNode{}}}},
 				Table:  TableNode{Name: "users"},
-				Conditions: ConditionsNode{
+				Conditions: &ConditionsNode{
 					Conditions: []ConditionNode{
 						{
 							Column:   ColumnNode{Name: "id"},
@@ -176,7 +176,7 @@ func TestParser(t *testing.T) {
 						},
 					},
 				},
-				Orders: OrdersNode{
+				Orders: &OrdersNode{
 					Orders: []OrderNode{
 						{
 							Column: ColumnNode{Name: "id"},
@@ -184,8 +184,8 @@ func TestParser(t *testing.T) {
 						},
 					},
 				},
-				Limit:  LimitNode{Limit: NumberNode{Value: 10}},
-				Offset: OffsetNode{Offset: NumberNode{Value: 0}},
+				Limit:  &LimitNode{Limit: NumberNode{Value: 10}},
+				Offset: &OffsetNode{Offset: NumberNode{Value: 0}},
 			},
 		},
 		{
@@ -216,7 +216,7 @@ func TestParser(t *testing.T) {
 						{Column: ColumnNode{Name: "age"}, Value: NumberNode{Value: 20}},
 					},
 				},
-				Conditions: ConditionsNode{
+				Conditions: &ConditionsNode{
 					Conditions: []ConditionNode{
 						{
 							Column:   ColumnNode{Name: "id"},
@@ -242,7 +242,7 @@ func TestParser(t *testing.T) {
 			},
 			expected: DeleteStmtNode{
 				Table: TableNode{Name: "users"},
-				Conditions: ConditionsNode{
+				Conditions: &ConditionsNode{
 					Conditions: []ConditionNode{
 						{
 							Column:   ColumnNode{Name: "id"},

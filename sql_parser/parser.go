@@ -6,15 +6,17 @@ import (
 	"strconv"
 )
 
-type SQLNode interface{}
+type SQLNode interface {
+	String() string
+}
 
 type SelectStmtNode struct {
 	Values     SelectValuesNode
 	Table      TableNode
-	Conditions ConditionsNode
-	Orders     OrdersNode
-	Limit      LimitNode
-	Offset     OffsetNode
+	Conditions *ConditionsNode
+	Orders     *OrdersNode
+	Limit      *LimitNode
+	Offset     *OffsetNode
 }
 
 type SelectValuesNode struct {
@@ -36,10 +38,10 @@ type SelectValueFunctionNode struct {
 type UpdateStmtNode struct {
 	Table      TableNode
 	Sets       UpdateSetsNode
-	Conditions ConditionsNode
-	Orders     OrdersNode
-	Limit      LimitNode
-	Offset     OffsetNode
+	Conditions *ConditionsNode
+	Orders     *OrdersNode
+	Limit      *LimitNode
+	Offset     *OffsetNode
 }
 
 type UpdateSetsNode struct {
@@ -54,10 +56,10 @@ type UpdateSetNode struct {
 
 type DeleteStmtNode struct {
 	Table      TableNode
-	Conditions ConditionsNode
-	Orders     OrdersNode
-	Limit      LimitNode
-	Offset     OffsetNode
+	Conditions *ConditionsNode
+	Orders     *OrdersNode
+	Limit      *LimitNode
+	Offset     *OffsetNode
 }
 
 type InsertStmtNode struct {
@@ -252,7 +254,7 @@ func (p *parser) selectStmt() (SelectStmtNode, error) {
 		if err != nil {
 			return SelectStmtNode{}, fmt.Errorf("<select-stmt> %v", err)
 		}
-		node.Conditions = conditions
+		node.Conditions = &conditions
 	}
 
 	if p.expect(token{Type: tokenType_RESERVED, Literal: "ORDER BY"}) {
@@ -260,7 +262,7 @@ func (p *parser) selectStmt() (SelectStmtNode, error) {
 		if err != nil {
 			return SelectStmtNode{}, fmt.Errorf("<select-stmt> %v", err)
 		}
-		node.Orders = orders
+		node.Orders = &orders
 	}
 
 	if p.expect(token{Type: tokenType_RESERVED, Literal: "LIMIT"}) {
@@ -268,7 +270,7 @@ func (p *parser) selectStmt() (SelectStmtNode, error) {
 		if err != nil {
 			return SelectStmtNode{}, fmt.Errorf("<select-stmt> %v", err)
 		}
-		node.Limit = limit
+		node.Limit = &limit
 	}
 
 	if p.expect(token{Type: tokenType_RESERVED, Literal: "OFFSET"}) {
@@ -276,7 +278,7 @@ func (p *parser) selectStmt() (SelectStmtNode, error) {
 		if err != nil {
 			return SelectStmtNode{}, fmt.Errorf("<select-stmt> %v", err)
 		}
-		node.Offset = offset
+		node.Offset = &offset
 	}
 
 	if !p.expect(token{Type: tokenType_SYMBOL, Literal: ";"}) {
@@ -361,7 +363,7 @@ func (p *parser) updateStmt() (UpdateStmtNode, error) {
 		if err != nil {
 			return UpdateStmtNode{}, fmt.Errorf("<update-stmt> %v", err)
 		}
-		node.Conditions = conditions
+		node.Conditions = &conditions
 	}
 
 	if p.expect(token{Type: tokenType_RESERVED, Literal: "ORDER BY"}) {
@@ -369,7 +371,7 @@ func (p *parser) updateStmt() (UpdateStmtNode, error) {
 		if err != nil {
 			return UpdateStmtNode{}, fmt.Errorf("<update-stmt> %v", err)
 		}
-		node.Orders = orders
+		node.Orders = &orders
 	}
 
 	if p.expect(token{Type: tokenType_RESERVED, Literal: "LIMIT"}) {
@@ -377,7 +379,7 @@ func (p *parser) updateStmt() (UpdateStmtNode, error) {
 		if err != nil {
 			return UpdateStmtNode{}, fmt.Errorf("<update-stmt> %v", err)
 		}
-		node.Limit = limit
+		node.Limit = &limit
 	}
 
 	if p.expect(token{Type: tokenType_RESERVED, Literal: "OFFSET"}) {
@@ -385,7 +387,7 @@ func (p *parser) updateStmt() (UpdateStmtNode, error) {
 		if err != nil {
 			return UpdateStmtNode{}, fmt.Errorf("<update-stmt> %v", err)
 		}
-		node.Offset = offset
+		node.Offset = &offset
 	}
 
 	if !p.expect(token{Type: tokenType_SYMBOL, Literal: ";"}) {
@@ -452,7 +454,7 @@ func (p *parser) deleteStmt() (SQLNode, error) {
 		if err != nil {
 			return nil, fmt.Errorf("<delete-stmt> %v", err)
 		}
-		node.Conditions = conditions
+		node.Conditions = &conditions
 	}
 
 	if p.expect(token{Type: tokenType_RESERVED, Literal: "ORDER BY"}) {
@@ -460,7 +462,7 @@ func (p *parser) deleteStmt() (SQLNode, error) {
 		if err != nil {
 			return nil, fmt.Errorf("<delete-stmt> %v", err)
 		}
-		node.Orders = orders
+		node.Orders = &orders
 	}
 
 	if p.expect(token{Type: tokenType_RESERVED, Literal: "LIMIT"}) {
@@ -468,7 +470,7 @@ func (p *parser) deleteStmt() (SQLNode, error) {
 		if err != nil {
 			return nil, fmt.Errorf("<delete-stmt> %v", err)
 		}
-		node.Limit = limit
+		node.Limit = &limit
 	}
 
 	if p.expect(token{Type: tokenType_RESERVED, Literal: "OFFSET"}) {
@@ -476,7 +478,7 @@ func (p *parser) deleteStmt() (SQLNode, error) {
 		if err != nil {
 			return nil, fmt.Errorf("<delete-stmt> %v", err)
 		}
-		node.Offset = offset
+		node.Offset = &offset
 	}
 
 	if !p.expect(token{Type: tokenType_SYMBOL, Literal: ";"}) {
