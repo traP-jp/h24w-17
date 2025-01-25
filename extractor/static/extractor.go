@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/traP-jp/h24w-17/normalizer"
 )
 
 var sqlPattern = regexp.MustCompile(`(?i)\b(SELECT|INSERT|UPDATE|DELETE)\b`)
@@ -38,6 +40,7 @@ func ExtractQueryFromFile(path string, root string) ([]*ExtractedQuery, error) {
 			value := strings.Trim(lit.Value, "\"`")
 			value = strings.ReplaceAll(value, "\n", " ")
 			value = replacePattern.ReplaceAllString(value, " ")
+			value = normalizer.NormalizeQuery(value)
 			pos := lit.Pos()
 			if sqlPattern.MatchString(value) {
 				pos := fs.Position(pos)

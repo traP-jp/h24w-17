@@ -41,8 +41,8 @@ func TestExtract(t *testing.T) {
 
 	queries := getQueries()
 	expected := []string{
-		`INSERT INTO users (id, name) VALUES (1, 'Alice')`,
-		`SELECT * FROM users`,
+		`INSERT INTO users (id, name) VALUES (1, 'Alice');`,
+		`SELECT * FROM users;`,
 	}
 	assert.ElementsMatch(t, expected, queries)
 }
