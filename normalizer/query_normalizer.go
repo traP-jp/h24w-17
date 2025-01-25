@@ -10,19 +10,19 @@ import (
 // VALUES (?, ?, ?) -> VALUES (?)
 // select id from table -> SELECT `id` FROM `table`
 
-func NormalizedQuery(query string) (string, error) {
+func NormalizeQuery(query string) (string, error) {
 	parsed, err := sql_parser.ParseSQL(query)
 	if err != nil {
 		return query, fmt.Errorf("failed to parse sql: %w", err)
 	}
-	transformed, err := transform(parsed)
+	transformed, err := normalizeSQLNode(parsed)
 	if err != nil {
 		return query, fmt.Errorf("failed to transform sql: %w", err)
 	}
 	return transformed.String(), nil
 }
 
-func transform(node sql_parser.SQLNode) (out sql_parser.SQLNode, err error) {
+func normalizeSQLNode(node sql_parser.SQLNode) (out sql_parser.SQLNode, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			out = node
@@ -35,7 +35,7 @@ func transform(node sql_parser.SQLNode) (out sql_parser.SQLNode, err error) {
 		if n.Conditions == nil {
 			return n, nil
 		}
-		transformed, err := transform(*n.Conditions)
+		transformed, err := normalizeSQLNode(*n.Conditions)
 		if err != nil {
 			return n, fmt.Errorf("failed to transform conditions: %w", err)
 		}
@@ -46,7 +46,7 @@ func transform(node sql_parser.SQLNode) (out sql_parser.SQLNode, err error) {
 		if n.Conditions == nil {
 			return n, nil
 		}
-		transformed, err := transform(*n.Conditions)
+		transformed, err := normalizeSQLNode(*n.Conditions)
 		if err != nil {
 			return n, fmt.Errorf("failed to transform conditions: %w", err)
 		}
@@ -54,7 +54,7 @@ func transform(node sql_parser.SQLNode) (out sql_parser.SQLNode, err error) {
 		n.Conditions = &conditions
 		return n, nil
 	case sql_parser.InsertStmtNode:
-		transformed, err := transform(n.Values)
+		transformed, err := normalizeSQLNode(n.Values)
 		if err != nil {
 			return n, fmt.Errorf("failed to transform values: %w", err)
 		}
@@ -64,7 +64,7 @@ func transform(node sql_parser.SQLNode) (out sql_parser.SQLNode, err error) {
 		if n.Conditions == nil {
 			return n, nil
 		}
-		transformed, err := transform(*n.Conditions)
+		transformed, err := normalizeSQLNode(*n.Conditions)
 		if err != nil {
 			return n, fmt.Errorf("failed to transform conditions: %w", err)
 		}
@@ -74,7 +74,7 @@ func transform(node sql_parser.SQLNode) (out sql_parser.SQLNode, err error) {
 	case sql_parser.ConditionsNode:
 		transformed := make([]sql_parser.ConditionNode, 0, len(n.Conditions))
 		for _, c := range n.Conditions {
-			visited, err := transform(c)
+			visited, err := normalizeSQLNode(c)
 			if err != nil {
 				return n, err
 			}

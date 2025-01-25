@@ -30,7 +30,7 @@ func TestNormalizeQuery(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.query, func(t *testing.T) {
-			actual, err := NormalizedQuery(tt.query)
+			actual, err := NormalizeQuery(tt.query)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expected, actual)
 		})
