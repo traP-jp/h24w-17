@@ -42,6 +42,26 @@ func (t token) String() string {
 	return "unknown"
 }
 
+func (t token) toSQL() string {
+	switch t.Type {
+	case tokenType_RESERVED:
+		return t.Literal
+	case tokenType_IDENTIFIER:
+		return t.Literal
+	case tokenType_SYMBOL:
+		return t.Literal
+	case tokenType_STRING:
+		return "'" + strings.ReplaceAll(t.Literal, "'", "''") + "'"
+	case tokenType_NUMBER:
+		return t.Literal
+	case tokenType_EOF:
+		return ""
+	case tokenType_UNKNOWN:
+		return t.Literal
+	}
+	return "unknown"
+}
+
 type lexer struct {
 	input string
 	pos   int
