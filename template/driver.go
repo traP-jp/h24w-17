@@ -51,6 +51,7 @@ func init() {
 			pk := retrievePrimaryKey(query.Select.Table)
 			pkOnly := len(conditions) == 1 && conditions[0].Column == pk && conditions[0].Operator == domains.CachePlanOperator_EQ
 			caches[query.Query] = cacheWithInfo{
+				query:  query.Query,
 				info:   *query.Select,
 				cache:  sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
 				pkOnly: pkOnly,

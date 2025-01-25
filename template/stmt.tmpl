@@ -147,11 +147,9 @@ func (s *CustomCacheStatement) Query(args []driver.Value) (driver.Rows, error) {
 	ctx := context.WithValue(context.Background(), stmtKey{}, s)
 	ctx = context.WithValue(ctx, argsKey{}, args)
 
-	pk := retrievePrimaryKey(s.queryInfo.Select.Table)
-
 	conditions := s.queryInfo.Select.Conditions
-	// if query is like "SELECT * FROM table WHERE pk IN (?, ?, ?, ...)"
-	if len(conditions) == 1 && conditions[0].Column == pk && conditions[0].Operator == domains.CachePlanOperator_IN {
+	// if query is like "SELECT * FROM table WHERE cond IN (?, ?, ?, ...)"
+	if len(conditions) == 1 && conditions[0].Operator == domains.CachePlanOperator_IN {
 		return s.inQuery(args)
 	}
 
@@ -164,31 +162,33 @@ func (s *CustomCacheStatement) Query(args []driver.Value) (driver.Rows, error) {
 }
 
 func (s *CustomCacheStatement) inQuery(args []driver.Value) (driver.Rows, error) {
-	// "SELECT * FROM table WHERE pk IN (?, ?, ...)"
+	// "SELECT * FROM table WHERE cond IN (?, ?, ...)"
 	// separate the query into multiple queries and merge the results
 	table := s.queryInfo.Select.Table
-	pkIndex := s.queryInfo.Select.Conditions[0].Placeholder.Index
-	pkValues := args[pkIndex:]
+	condIdx := s.queryInfo.Select.Conditions[0].Placeholder.Index
+	condValues := args[condIdx:]
 
-	// find the pkOnly query "SELECT * FROM table WHERE pk = ?"
-	var cache cacheWithInfo
+	// find the query "SELECT * FROM table WHERE cond = ?"
+	var cache *cacheWithInfo
 	for _, c := range cacheByTable[table] {
-		if c.pkOnly {
-			cache = c
-			break
+		if len(c.info.Conditions) == 1 && c.info.Conditions[0].Column == s.queryInfo.Select.Conditions[0].Column && c.info.Conditions[0].Operator == domains.CachePlanOperator_EQ {
+			cache = &c
 		}
 	}
+	if cache == nil {
+		return nil, fmt.Errorf("cache not found for query %s", s.rawQuery)
+	}
 
-	allRows := make([]*CacheRows, 0, len(pkValues))
-	for _, pkValue := range pkValues {
+	allRows := make([]*CacheRows, 0, len(condValues))
+	for _, condValue := range condValues {
 		// prepare new statement
-		stmt, err := s.conn.Prepare(s.query)
+		stmt, err := s.conn.Prepare(cache.query)
 		if err != nil {
 			return nil, err
 		}
 		ctx := context.WithValue(context.Background(), stmtKey{}, stmt)
-		ctx = context.WithValue(ctx, argsKey{}, []driver.Value{pkValue})
-		rows, err := cache.cache.Get(ctx, cacheKey([]driver.Value{pkValue}))
+		ctx = context.WithValue(ctx, argsKey{}, []driver.Value{condValue})
+		rows, err := cache.cache.Get(ctx, cacheKey([]driver.Value{condValue}))
 		if err != nil {
 			return nil, err
 		}
@@ -217,11 +217,9 @@ func (c *CacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []
 		return inner.QueryContext(ctx, rawQuery, nvargs)
 	}
 
-	pk := retrievePrimaryKey(queryInfo.Select.Table)
-
 	conditions := queryInfo.Select.Conditions
-	// if query is like "SELECT * FROM table WHERE pk IN (?, ?, ?, ...)"
-	if len(conditions) == 1 && conditions[0].Column == pk && conditions[0].Operator == domains.CachePlanOperator_IN {
+	// if query is like "SELECT * FROM table WHERE cond IN (?, ?, ?, ...)"
+	if len(conditions) == 1 && conditions[0].Operator == domains.CachePlanOperator_IN {
 		return c.inQuery(ctx, rawQuery, nvargs, inner)
 	}
 
@@ -243,7 +241,7 @@ func (c *CacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []
 }
 
 func (c *CacheConn) inQuery(ctx context.Context, query string, args []driver.NamedValue, inner driver.QueryerContext) (driver.Rows, error) {
-	// "SELECT * FROM table WHERE pk IN (?, ?, ...)"
+	// "SELECT * FROM table WHERE cond IN (?, ?, ...)"
 	// separate the query into multiple queries and merge the results
 	normalized, err := normalizer.NormalizeQuery(query)
 	if err != nil {
@@ -252,24 +250,27 @@ func (c *CacheConn) inQuery(ctx context.Context, query string, args []driver.Nam
 
 	queryInfo := queryMap[normalized.Query]
 	table := queryInfo.Select.Table
-	pkIndex := queryInfo.Select.Conditions[0].Placeholder.Index
-	pkValues := args[pkIndex:]
+	condIdx := queryInfo.Select.Conditions[0].Placeholder.Index
+	condValues := args[condIdx:]
 
-	// find the pkOnly query "SELECT * FROM table WHERE pk = ?"
-	var cache cacheWithInfo
+	// find the query "SELECT * FROM table WHERE cond = ?"
+	var cache *cacheWithInfo
 	for _, c := range cacheByTable[table] {
-		if c.pkOnly {
-			cache = c
-			break
+		if len(c.info.Conditions) == 1 && c.info.Conditions[0].Column == queryInfo.Select.Conditions[0].Column && c.info.Conditions[0].Operator == domains.CachePlanOperator_EQ {
+			cache = &c
 		}
 	}
+	if cache == nil {
+		return nil, fmt.Errorf("cache not found for query %s", query)
+	}
 
-	allRows := make([]*CacheRows, 0, len(pkValues))
-	for _, pkValue := range pkValues {
-		cacheCtx := context.WithValue(ctx, queryKey{}, query)
-		cacheCtx = context.WithValue(ctx, queryerCtxKey{}, inner)
-		cacheCtx = context.WithValue(cacheCtx, namedValueArgsKey{}, args)
-		rows, err := cache.cache.Get(cacheCtx, cacheKey([]driver.Value{pkValue.Value}))
+	allRows := make([]*CacheRows, 0, len(condValues))
+	for _, condValue := range condValues {
+		nvargs := []driver.NamedValue{condValue}
+		cacheCtx := context.WithValue(ctx, queryKey{}, cache.query)
+		cacheCtx = context.WithValue(cacheCtx, queryerCtxKey{}, inner)
+		cacheCtx = context.WithValue(cacheCtx, namedValueArgsKey{}, nvargs)
+		rows, err := cache.cache.Get(cacheCtx, cacheKey([]driver.Value{condValue.Value}))
 		if err != nil {
 			return nil, err
 		}
