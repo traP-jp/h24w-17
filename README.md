@@ -81,6 +81,7 @@ type NonCachableSelectQuery = {
   type: 'select'
   query: string
   cache: false
+  table?: string
 }
 
 type UpdateQuery = {
