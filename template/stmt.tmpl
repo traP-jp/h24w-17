@@ -212,10 +212,7 @@ func (s *customCacheStatement) inQuery(args []driver.Value) (driver.Rows, error)
 }
 
 func (c *cacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []driver.NamedValue) (driver.Rows, error) {
-	normalizedQuery, err := normalizer.NormalizeQuery(rawQuery)
-	if err != nil {
-		return nil, err
-	}
+	normalizedQuery := normalizer.NormalizeQuery(rawQuery)
 
 	inner, ok := c.inner.(driver.QueryerContext)
 	if !ok {
@@ -256,10 +253,7 @@ func (c *cacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []
 func (c *cacheConn) inQuery(ctx context.Context, query string, args []driver.NamedValue, inner driver.QueryerContext) (driver.Rows, error) {
 	// "SELECT * FROM table WHERE cond IN (?, ?, ...)"
 	// separate the query into multiple queries and merge the results
-	normalizedQuery, err := normalizer.NormalizeQuery(query)
-	if err != nil {
-		return nil, err
-	}
+	normalizedQuery := normalizer.NormalizeQuery(query)
 
 	queryInfo := queryMap[normalizedQuery]
 	table := queryInfo.Select.Table
