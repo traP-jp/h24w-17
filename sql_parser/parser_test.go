@@ -28,7 +28,7 @@ func TestParser(t *testing.T) {
 			},
 		},
 		{
-			name: "SELECT id AS id_alt, name `name_alt` FROM users;",
+			name: "SELECT id AS id_alt, name name_alt FROM users;",
 			input: []token{
 				{Type: tokenType_RESERVED, Literal: "SELECT"},
 				{Type: tokenType_IDENTIFIER, Literal: "id"},
@@ -36,9 +36,7 @@ func TestParser(t *testing.T) {
 				{Type: tokenType_IDENTIFIER, Literal: "id_alt"},
 				{Type: tokenType_SYMBOL, Literal: ","},
 				{Type: tokenType_IDENTIFIER, Literal: "name"},
-				{Type: tokenType_SYMBOL, Literal: "`"},
 				{Type: tokenType_IDENTIFIER, Literal: "name_alt"},
-				{Type: tokenType_SYMBOL, Literal: "`"},
 				{Type: tokenType_RESERVED, Literal: "FROM"},
 				{Type: tokenType_IDENTIFIER, Literal: "users"},
 				{Type: tokenType_SYMBOL, Literal: ";"},
@@ -318,17 +316,11 @@ func TestParser(t *testing.T) {
 				{Type: tokenType_SYMBOL, Literal: "*"},
 				{Type: tokenType_SYMBOL, Literal: ")"},
 				{Type: tokenType_RESERVED, Literal: "AS"},
-				{Type: tokenType_SYMBOL, Literal: "`"},
 				{Type: tokenType_IDENTIFIER, Literal: "count"},
-				{Type: tokenType_SYMBOL, Literal: "`"},
 				{Type: tokenType_RESERVED, Literal: "FROM"},
-				{Type: tokenType_SYMBOL, Literal: "`"},
 				{Type: tokenType_IDENTIFIER, Literal: "comments"},
-				{Type: tokenType_SYMBOL, Literal: "`"},
 				{Type: tokenType_RESERVED, Literal: "WHERE"},
-				{Type: tokenType_SYMBOL, Literal: "`"},
 				{Type: tokenType_IDENTIFIER, Literal: "post_id"},
-				{Type: tokenType_SYMBOL, Literal: "`"},
 				{Type: tokenType_SYMBOL, Literal: "="},
 				{Type: tokenType_SYMBOL, Literal: "?"},
 				{Type: tokenType_EOF, Literal: ""},
@@ -339,6 +331,29 @@ func TestParser(t *testing.T) {
 				Conditions: &ConditionsNode{
 					Conditions: []ConditionNode{
 						{Column: ColumnNode{Name: "post_id"}, Operator: OperatorNode{Operator: Operator_EQ}, Value: PlaceholderNode{}},
+					},
+				},
+			},
+		},
+		{
+			name: "SELECT 1 FROM users WHERE account_name = ?",
+			input: []token{
+				{Type: tokenType_RESERVED, Literal: "SELECT"},
+				{Type: tokenType_NUMBER, Literal: "1"},
+				{Type: tokenType_RESERVED, Literal: "FROM"},
+				{Type: tokenType_IDENTIFIER, Literal: "users"},
+				{Type: tokenType_RESERVED, Literal: "WHERE"},
+				{Type: tokenType_IDENTIFIER, Literal: "account_name"},
+				{Type: tokenType_SYMBOL, Literal: "="},
+				{Type: tokenType_SYMBOL, Literal: "?"},
+				{Type: tokenType_EOF, Literal: ""},
+			},
+			expected: SelectStmtNode{
+				Values: SelectValuesNode{Values: []SQLNode{NumberNode{Value: 1}}},
+				Table:  TableNode{Name: "users"},
+				Conditions: &ConditionsNode{
+					Conditions: []ConditionNode{
+						{Column: ColumnNode{Name: "account_name"}, Operator: OperatorNode{Operator: Operator_EQ}, Value: PlaceholderNode{}},
 					},
 				},
 			},

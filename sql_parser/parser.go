@@ -20,7 +20,7 @@ type SelectStmtNode struct {
 }
 
 type SelectValuesNode struct {
-	// SelectValueAsteriskNode | SelectValueColumnNode | SelectValueFunctionNode
+	// SelectValueAsteriskNode | SelectValueColumnNode | SelectValueFunctionNode | StringNode | NumberNode
 	Values []SQLNode
 }
 
@@ -328,6 +328,18 @@ func (p *parser) selectValue() (SQLNode, error) {
 			p.selectAlias()
 			return SelectValueFunctionNode{Name: t.Literal, Value: v}, nil
 		}
+	}
+	if t.Type == tokenType_STRING {
+		p.consume()
+		return StringNode{Value: t.Literal}, nil
+	}
+	if t.Type == tokenType_NUMBER {
+		p.consume()
+		parsed, err := strconv.Atoi(t.Literal)
+		if err != nil {
+			return nil, fmt.Errorf("<select-value> failed to parse number %v", err)
+		}
+		return NumberNode{Value: parsed}, nil
 	}
 
 	column, err := p.column()

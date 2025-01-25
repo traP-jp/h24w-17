@@ -167,15 +167,39 @@ func TestLexer(t *testing.T) {
 				{Type: tokenType_EOF, Literal: ""},
 			},
 		},
+		{
+			input: "SELECT COUNT(*) AS `count` FROM `comments` WHERE `post_id` = ?",
+			expected: []token{
+				{Type: tokenType_RESERVED, Literal: "SELECT"},
+				{Type: tokenType_RESERVED, Literal: "COUNT"},
+				{Type: tokenType_SYMBOL, Literal: "("},
+				{Type: tokenType_SYMBOL, Literal: "*"},
+				{Type: tokenType_SYMBOL, Literal: ")"},
+				{Type: tokenType_RESERVED, Literal: "AS"},
+				{Type: tokenType_IDENTIFIER, Literal: "count"},
+				{Type: tokenType_RESERVED, Literal: "FROM"},
+				{Type: tokenType_IDENTIFIER, Literal: "comments"},
+				{Type: tokenType_RESERVED, Literal: "WHERE"},
+				{Type: tokenType_IDENTIFIER, Literal: "post_id"},
+				{Type: tokenType_SYMBOL, Literal: "="},
+				{Type: tokenType_SYMBOL, Literal: "?"},
+				{Type: tokenType_EOF, Literal: ""},
+			},
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.input, func(t *testing.T) {
 			lexer := NewLexer(test.input)
-			for i, exp := range test.expected {
+			tokens := []token{}
+			for {
 				tok := lexer.NextToken()
-				assert.Equal(t, exp, tok, "Token %d", i)
+				tokens = append(tokens, tok)
+				if tok.Type == tokenType_EOF {
+					break
+				}
 			}
+			assert.Equal(t, test.expected, tokens)
 		})
 	}
 }
