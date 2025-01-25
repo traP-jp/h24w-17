@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/motoki317/sc"
@@ -94,6 +95,18 @@ func (s *customCacheStatement) execUpdate(args []driver.Value) (driver.Result, e
 	// TODO: support composite primary key and other unique key
 	table := s.queryInfo.Update.Table
 
+	usedBySelectQuery := func(selectTarget []string, updateTarget []domains.CachePlanUpdateTarget) bool {
+		for _, target := range updateTarget {
+			inSelectTarget := slices.ContainsFunc(selectTarget, func(selectTarget string) bool {
+				return selectTarget == target.Column
+			})
+			if inSelectTarget {
+				return true
+			}
+		}
+		return false
+	}
+
 	// if query is like "UPDATE table SET ... WHERE pk = ?"
 	var updateByUnique bool
 	if len(s.queryInfo.Update.Conditions) == 1 {
@@ -102,8 +115,12 @@ func (s *customCacheStatement) execUpdate(args []driver.Value) (driver.Result, e
 		updateByUnique = (column.IsPrimary || column.IsUnique) && condition.Operator == domains.CachePlanOperator_EQ
 	}
 	if !updateByUnique {
-		// we should purge all cache
 		for _, cache := range cacheByTable[table] {
+			if !usedBySelectQuery(cache.info.Targets, s.queryInfo.Update.Targets) {
+				// no need to purge because the cache does not contain the updated column
+				continue
+			}
+			// we should purge all cache
 			cache.cache.Purge()
 		}
 		return s.inner.Exec(args)
@@ -112,10 +129,14 @@ func (s *customCacheStatement) execUpdate(args []driver.Value) (driver.Result, e
 	uniqueValue := args[s.queryInfo.Update.Conditions[0].Placeholder.Index]
 
 	for _, cache := range cacheByTable[table] {
-		if cache.uniqueOnly {
+		if cache.uniqueOnly && usedBySelectQuery(cache.info.Targets, s.queryInfo.Update.Targets) {
 			// we should forget the cache
 			cache.cache.Forget(cacheKey([]driver.Value{uniqueValue}))
 		} else {
+			if !usedBySelectQuery(cache.info.Targets, s.queryInfo.Update.Targets) {
+				// no need to purge because the cache does not contain the updated column
+				continue
+			}
 			cache.cache.Purge()
 		}
 	}
