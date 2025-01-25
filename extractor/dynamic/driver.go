@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/traP-jp/h24w-17/normalizer"
 )
 
 func init() {
@@ -47,6 +48,7 @@ func processQuery(query string) {
 	}
 	query = strings.ReplaceAll(query, "\n", " ")
 	query = replacePattern.ReplaceAllString(query, " ")
+	query = normalizer.NormalizeQuery(query)
 	addQuery(query)
 }
 
