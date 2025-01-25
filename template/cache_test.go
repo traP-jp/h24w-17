@@ -31,7 +31,7 @@ func TestCacheRows(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Close()
 
-	var cacheRows *CacheRows
+	var cacheRows *cacheRows
 	err = conn.Raw(func(driverConn any) error {
 		conn := driverConn.(driver.Conn)
 		stmt, err := conn.Prepare("SELECT id, name FROM users")
@@ -44,7 +44,7 @@ func TestCacheRows(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		cacheRows = NewCacheRows(rows)
+		cacheRows = newCacheRows(rows)
 		defer cacheRows.Close()
 
 		return cacheRows.createCache()

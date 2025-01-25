@@ -23,7 +23,7 @@ type cacheWithInfo struct {
 	query      string
 	info       domains.CachePlanSelectQuery
 	uniqueOnly bool // if true, query is like "SELECT * FROM table WHERE pk = ?"
-	cache      *sc.Cache[string, *CacheRows]
+	cache      *sc.Cache[string, *cacheRows]
 }
 
 // NOTE: no write happens to this map, so it's safe to use in concurrent environment
@@ -40,26 +40,32 @@ func ExportMetrics() string {
 	return res
 }
 
-var _ driver.Stmt = &CustomCacheStatement{}
+func PurgeAllCaches() {
+	for _, cache := range caches {
+		cache.cache.Purge()
+	}
+}
 
-type CustomCacheStatement struct {
+var _ driver.Stmt = &customCacheStatement{}
+
+type customCacheStatement struct {
 	inner    driver.Stmt
-	conn     *CacheConn
+	conn     *cacheConn
 	rawQuery string
 	// query is the normalized query
 	query     string
 	queryInfo domains.CachePlanQuery
 }
 
-func (s *CustomCacheStatement) Close() error {
+func (s *customCacheStatement) Close() error {
 	return s.inner.Close()
 }
 
-func (s *CustomCacheStatement) NumInput() int {
+func (s *customCacheStatement) NumInput() int {
 	return s.inner.NumInput()
 }
 
-func (s *CustomCacheStatement) Exec(args []driver.Value) (driver.Result, error) {
+func (s *customCacheStatement) Exec(args []driver.Value) (driver.Result, error) {
 	switch s.queryInfo.Type {
 	case domains.CachePlanQueryType_INSERT:
 		return s.execInsert(args)
@@ -71,7 +77,7 @@ func (s *CustomCacheStatement) Exec(args []driver.Value) (driver.Result, error) 
 	return s.inner.Exec(args)
 }
 
-func (s *CustomCacheStatement) execInsert(args []driver.Value) (driver.Result, error) {
+func (s *customCacheStatement) execInsert(args []driver.Value) (driver.Result, error) {
 	table := s.queryInfo.Insert.Table
 	// TODO: support composite primary key and other unique key
 	for _, cache := range cacheByTable[table] {
@@ -84,7 +90,7 @@ func (s *CustomCacheStatement) execInsert(args []driver.Value) (driver.Result, e
 	return s.inner.Exec(args)
 }
 
-func (s *CustomCacheStatement) execUpdate(args []driver.Value) (driver.Result, error) {
+func (s *customCacheStatement) execUpdate(args []driver.Value) (driver.Result, error) {
 	// TODO: support composite primary key and other unique key
 	table := s.queryInfo.Update.Table
 
@@ -117,7 +123,7 @@ func (s *CustomCacheStatement) execUpdate(args []driver.Value) (driver.Result, e
 	return s.inner.Exec(args)
 }
 
-func (s *CustomCacheStatement) execDelete(args []driver.Value) (driver.Result, error) {
+func (s *customCacheStatement) execDelete(args []driver.Value) (driver.Result, error) {
 	table := s.queryInfo.Delete.Table
 
 	// if query is like "DELETE FROM table WHERE unique = ?"
@@ -150,7 +156,7 @@ func (s *CustomCacheStatement) execDelete(args []driver.Value) (driver.Result, e
 	return s.inner.Exec(args)
 }
 
-func (s *CustomCacheStatement) Query(args []driver.Value) (driver.Rows, error) {
+func (s *customCacheStatement) Query(args []driver.Value) (driver.Rows, error) {
 	ctx := context.WithValue(context.Background(), stmtKey{}, s)
 	ctx = context.WithValue(ctx, argsKey{}, args)
 
@@ -168,7 +174,7 @@ func (s *CustomCacheStatement) Query(args []driver.Value) (driver.Rows, error) {
 	return rows, nil
 }
 
-func (s *CustomCacheStatement) inQuery(args []driver.Value) (driver.Rows, error) {
+func (s *customCacheStatement) inQuery(args []driver.Value) (driver.Rows, error) {
 	// "SELECT * FROM table WHERE cond IN (?, ?, ...)"
 	// separate the query into multiple queries and merge the results
 	table := s.queryInfo.Select.Table
@@ -186,7 +192,7 @@ func (s *CustomCacheStatement) inQuery(args []driver.Value) (driver.Rows, error)
 		return nil, fmt.Errorf("cache not found for query %s", s.rawQuery)
 	}
 
-	allRows := make([]*CacheRows, 0, len(condValues))
+	allRows := make([]*cacheRows, 0, len(condValues))
 	for _, condValue := range condValues {
 		// prepare new statement
 		stmt, err := s.conn.Prepare(cache.query)
@@ -205,7 +211,7 @@ func (s *CustomCacheStatement) inQuery(args []driver.Value) (driver.Rows, error)
 	return mergeCachedRows(allRows), nil
 }
 
-func (c *CacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []driver.NamedValue) (driver.Rows, error) {
+func (c *cacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []driver.NamedValue) (driver.Rows, error) {
 	normalizedQuery, err := normalizer.NormalizeQuery(rawQuery)
 	if err != nil {
 		return nil, err
@@ -247,7 +253,7 @@ func (c *CacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []
 	return rows, nil
 }
 
-func (c *CacheConn) inQuery(ctx context.Context, query string, args []driver.NamedValue, inner driver.QueryerContext) (driver.Rows, error) {
+func (c *cacheConn) inQuery(ctx context.Context, query string, args []driver.NamedValue, inner driver.QueryerContext) (driver.Rows, error) {
 	// "SELECT * FROM table WHERE cond IN (?, ?, ...)"
 	// separate the query into multiple queries and merge the results
 	normalizedQuery, err := normalizer.NormalizeQuery(query)
@@ -271,7 +277,7 @@ func (c *CacheConn) inQuery(ctx context.Context, query string, args []driver.Nam
 		return nil, fmt.Errorf("cache not found for query %s", query)
 	}
 
-	allRows := make([]*CacheRows, 0, len(condValues))
+	allRows := make([]*cacheRows, 0, len(condValues))
 	for _, condValue := range condValues {
 		nvargs := []driver.NamedValue{condValue}
 		cacheCtx := context.WithValue(ctx, queryKey{}, cache.query)
@@ -308,8 +314,8 @@ func cacheKey(args []driver.Value) string {
 	return b.String()
 }
 
-func replaceFn(ctx context.Context, key string) (*CacheRows, error) {
-	var res *CacheRows
+func replaceFn(ctx context.Context, key string) (*cacheRows, error) {
+	var res *cacheRows
 
 	queryerCtx, ok := ctx.Value(queryerCtxKey{}).(driver.QueryerContext)
 	if ok {
@@ -319,15 +325,15 @@ func replaceFn(ctx context.Context, key string) (*CacheRows, error) {
 		if err != nil {
 			return nil, err
 		}
-		res = NewCacheRows(rows)
+		res = newCacheRows(rows)
 	} else {
-		stmt := ctx.Value(stmtKey{}).(*CustomCacheStatement)
+		stmt := ctx.Value(stmtKey{}).(*customCacheStatement)
 		args := ctx.Value(argsKey{}).([]driver.Value)
 		rows, err := stmt.inner.Query(args)
 		if err != nil {
 			return nil, err
 		}
-		res = NewCacheRows(rows)
+		res = newCacheRows(rows)
 	}
 
 	if err := res.createCache(); err != nil {
