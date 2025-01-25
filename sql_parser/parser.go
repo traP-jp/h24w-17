@@ -281,9 +281,7 @@ func (p *parser) selectStmt() (SelectStmtNode, error) {
 		node.Offset = &offset
 	}
 
-	if !p.expect(token{Type: tokenType_SYMBOL, Literal: ";"}) {
-		return SelectStmtNode{}, fmt.Errorf("<select-stmt> expected <symbol(;)>, got %v", p.peek().String())
-	}
+	p.expect(token{Type: tokenType_SYMBOL, Literal: ";"})
 	return node, nil
 }
 
@@ -390,10 +388,7 @@ func (p *parser) updateStmt() (UpdateStmtNode, error) {
 		node.Offset = &offset
 	}
 
-	if !p.expect(token{Type: tokenType_SYMBOL, Literal: ";"}) {
-		return UpdateStmtNode{}, fmt.Errorf("<update-stmt> expected <symbol(;)>, got %v", p.peek().String())
-	}
-
+	p.expect(token{Type: tokenType_SYMBOL, Literal: ";"})
 	return node, nil
 }
 
@@ -481,9 +476,7 @@ func (p *parser) deleteStmt() (SQLNode, error) {
 		node.Offset = &offset
 	}
 
-	if !p.expect(token{Type: tokenType_SYMBOL, Literal: ";"}) {
-		return nil, fmt.Errorf("<delete-stmt> expected <symbol(;)>, got %v", p.peek().String())
-	}
+	p.expect(token{Type: tokenType_SYMBOL, Literal: ";"})
 	return node, nil
 }
 
@@ -535,10 +528,7 @@ func (p *parser) insertStmt() (SQLNode, error) {
 		return nil, fmt.Errorf("<insert-stmt> expected <symbol())>, got %v", p.peek().String())
 	}
 
-	if !p.expect(token{Type: tokenType_SYMBOL, Literal: ";"}) {
-		return nil, fmt.Errorf("<insert-stmt> expected <symbol(;)>, got %v", p.peek().String())
-	}
-
+	p.expect(token{Type: tokenType_SYMBOL, Literal: ";"})
 	return node, nil
 }
 

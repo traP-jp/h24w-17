@@ -28,7 +28,7 @@ func TestParser(t *testing.T) {
 			},
 		},
 		{
-			name: "SELECT * FROM users WHERE id = ?;",
+			name: "SELECT * FROM users WHERE id = ?",
 			input: []token{
 				{Type: tokenType_RESERVED, Literal: "SELECT"},
 				{Type: tokenType_SYMBOL, Literal: "*"},
@@ -38,7 +38,6 @@ func TestParser(t *testing.T) {
 				{Type: tokenType_IDENTIFIER, Literal: "id"},
 				{Type: tokenType_SYMBOL, Literal: "="},
 				{Type: tokenType_SYMBOL, Literal: "?"},
-				{Type: tokenType_SYMBOL, Literal: ";"},
 				{Type: tokenType_EOF, Literal: ""},
 			},
 			expected: SelectStmtNode{
