@@ -35,8 +35,17 @@ var cacheByTable = make(map[string][]cacheWithInfo)
 func ExportMetrics() string {
 	res := ""
 	for query, cache := range caches {
-		res += "query: " + query + "\n"
-		res += cache.cache.Stats().String() + "\n"
+		stats := cache.cache.Stats()
+		progress := "["
+		for i := 0; i < 20; i++ {
+			if i < int(stats.HitRatio()*20) {
+				progress += "#"
+			} else {
+				progress += "-"
+			}
+		}
+		statsStr := fmt.Sprintf("%s (%.2f%% - %d/%d) (%d replace) (size %d)", progress, stats.HitRatio()*100, stats.Hits, stats.Misses+stats.Hits, stats.Replacements, stats.Size)
+		res += fmt.Sprintf("query: \"%s\"\n%s\n\n", query, statsStr)
 	}
 	return res
 }
