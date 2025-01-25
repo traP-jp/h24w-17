@@ -25,6 +25,31 @@ func TestLexer(t *testing.T) {
 			},
 		},
 		{
+			input: "SELECT name AS name_alt FROM users;",
+			expected: []token{
+				{Type: tokenType_RESERVED, Literal: "SELECT"},
+				{Type: tokenType_IDENTIFIER, Literal: "name"},
+				{Type: tokenType_RESERVED, Literal: "AS"},
+				{Type: tokenType_IDENTIFIER, Literal: "name_alt"},
+				{Type: tokenType_RESERVED, Literal: "FROM"},
+				{Type: tokenType_IDENTIFIER, Literal: "users"},
+				{Type: tokenType_SYMBOL, Literal: ";"},
+				{Type: tokenType_EOF, Literal: ""},
+			},
+		},
+		{
+			input: "SELECT name `name_alt` FROM users;",
+			expected: []token{
+				{Type: tokenType_RESERVED, Literal: "SELECT"},
+				{Type: tokenType_IDENTIFIER, Literal: "name"},
+				{Type: tokenType_IDENTIFIER, Literal: "name_alt"},
+				{Type: tokenType_RESERVED, Literal: "FROM"},
+				{Type: tokenType_IDENTIFIER, Literal: "users"},
+				{Type: tokenType_SYMBOL, Literal: ";"},
+				{Type: tokenType_EOF, Literal: ""},
+			},
+		},
+		{
 			input: "SELECT name, age FROM `users` WHERE age > 18;",
 			expected: []token{
 				{Type: tokenType_RESERVED, Literal: "SELECT"},
