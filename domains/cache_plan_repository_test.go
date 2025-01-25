@@ -78,6 +78,15 @@ var formatted = `queries:
         placeholder:
           index: 0
           extra: true
+  - query: INSERT INTO livecomments (user_id, livestream_id, comment, tip, created_at) VALUES (?)
+    type: insert
+    table: livecomments
+    columns:
+      - user_id
+      - livestream_id
+      - comment
+      - tip
+      - created_at
 `
 
 var parsed = &CachePlan{
@@ -161,6 +170,16 @@ var parsed = &CachePlan{
 				Conditions: []CachePlanCondition{
 					{Column: "name", Operator: CachePlanOperator_EQ, Placeholder: CachePlanPlaceholder{Index: 0, Extra: true}},
 				},
+			},
+		},
+		{
+			CachePlanQueryBase: &CachePlanQueryBase{
+				Query: "INSERT INTO livecomments (user_id, livestream_id, comment, tip, created_at) VALUES (?)",
+				Type:  CachePlanQueryType_INSERT,
+			},
+			Insert: &CachePlanInsertQuery{
+				Table:   "livecomments",
+				Columns: []string{"user_id", "livestream_id", "comment", "tip", "created_at"},
 			},
 		},
 	},
