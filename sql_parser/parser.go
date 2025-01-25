@@ -20,6 +20,7 @@ type SelectStmtNode struct {
 }
 
 type SelectValuesNode struct {
+	// SelectValueAsteriskNode | SelectValueColumnNode | SelectValueFunctionNode
 	Values []SQLNode
 }
 
@@ -31,7 +32,7 @@ type SelectValueColumnNode struct {
 
 type SelectValueFunctionNode struct {
 	Name string
-	// selectValueAsteriskNode | selectValueColumnNode | selectValueFunctionNode
+	// SelectValueAsteriskNode | SelectValueColumnNode | SelectValueFunctionNode
 	Value SQLNode
 }
 
@@ -50,7 +51,7 @@ type UpdateSetsNode struct {
 
 type UpdateSetNode struct {
 	Column ColumnNode
-	// stringNode | numberNode | placeholderNode
+	// StringNode | NumberNode | PlaceholderNode
 	Value SQLNode
 }
 
@@ -75,7 +76,7 @@ type ConditionsNode struct {
 type ConditionNode struct {
 	Column   ColumnNode
 	Operator OperatorNode
-	// stringNode | numberNode | placeholderNode | valuesNode
+	// StringNode | NumberNode | PlaceholderNode | ValuesNode
 	Value SQLNode
 }
 
@@ -96,12 +97,12 @@ const (
 )
 
 type LimitNode struct {
-	// numberNode | placeholderNode
+	// NumberNode | PlaceholderNode
 	Limit SQLNode
 }
 
 type OffsetNode struct {
-	// numberNode | placeholderNode
+	// NumberNode | PlaceholderNode
 	Offset SQLNode
 }
 
@@ -151,10 +152,11 @@ type PlaceholderNode struct{}
 
 type parser struct {
 	tokens []token
+	cursor int
 }
 
 func NewParser(tokens []token) *parser {
-	return &parser{tokens: tokens}
+	return &parser{tokens: tokens, cursor: 0}
 }
 
 func (p *parser) Parse() (ast SQLNode, err error) {
@@ -175,34 +177,34 @@ func (p *parser) Parse() (ast SQLNode, err error) {
 }
 
 func (p *parser) peek() token {
-	if len(p.tokens) == 0 {
+	if len(p.tokens) == p.cursor {
 		panic("peek() -> unexpected EOF")
 	}
-	return p.tokens[0]
+	return p.tokens[p.cursor]
 }
 
 func (p *parser) check(expected token) bool {
-	if len(p.tokens) == 0 {
+	if len(p.tokens) == p.cursor {
 		panic("check() -> unexpected EOF")
 	}
-	actual := p.tokens[0]
+	actual := p.tokens[p.cursor]
 	return expected.Type == actual.Type && expected.Literal == actual.Literal
 }
 
 func (p *parser) expect(expected token) bool {
 	ok := p.check(expected)
 	if ok {
-		p.tokens = p.tokens[1:]
+		p.cursor++
 	}
 	return ok
 }
 
 func (p *parser) consume() token {
-	if len(p.tokens) == 0 {
+	if len(p.tokens) == p.cursor {
 		panic("consume() -> unexpected EOF")
 	}
-	t := p.tokens[0]
-	p.tokens = p.tokens[1:]
+	t := p.tokens[p.cursor]
+	p.cursor++
 	return t
 }
 
@@ -305,6 +307,7 @@ func (p *parser) selectValues() (SelectValuesNode, error) {
 
 func (p *parser) selectValue() (SQLNode, error) {
 	if p.expect(token{Type: tokenType_SYMBOL, Literal: "*"}) {
+		p.selectAlias()
 		return SelectValueAsteriskNode{}, nil
 	}
 	t := p.peek()
@@ -322,36 +325,32 @@ func (p *parser) selectValue() (SQLNode, error) {
 			if !p.expect(token{Type: tokenType_SYMBOL, Literal: ")"}) {
 				return nil, fmt.Errorf("<select-value> expected <symbol())>, got %v", t.String())
 			}
+			p.selectAlias()
 			return SelectValueFunctionNode{Name: t.Literal, Value: v}, nil
 		}
 	}
 
-	v, err := p.selectColumn()
+	column, err := p.column()
 	if err == nil {
-		return SelectValueColumnNode{Column: v}, nil
+		p.selectAlias()
+		return SelectValueColumnNode{Column: column}, nil
 	}
-
 	return nil, fmt.Errorf("<select-value> got unexpected token %v", t.String())
 }
 
-func (p *parser) selectColumn() (ColumnNode, error) {
-	column, err := p.column()
-	if err != nil {
-		return ColumnNode{}, fmt.Errorf("<select-column> %v", err)
-	}
-
+func (p *parser) selectAlias() (SQLNode, error) {
+	// alias is not used
 	if p.expect(token{Type: tokenType_RESERVED, Literal: "AS"}) {
-		// alias is not used
-		_, err := p.column()
+		alias, err := p.column()
 		if err != nil {
-			return ColumnNode{}, fmt.Errorf("<select-column> %v", err)
+			return nil, fmt.Errorf("<select-alias> %v", err)
 		}
+		fmt.Printf("alias: %v\n", alias)
+		return nil, nil
 	} else {
-		// alias is not used
 		p.column()
 	}
-
-	return column, nil
+	return nil, nil
 }
 
 func (p *parser) updateStmt() (UpdateStmtNode, error) {
@@ -702,7 +701,7 @@ func (p *parser) column() (ColumnNode, error) {
 			return ColumnNode{}, fmt.Errorf("<column> expected <identifier>, got %v", t.String())
 		}
 		column := ColumnNode{Name: t.Literal}
-		if p.expect(token{Type: tokenType_SYMBOL, Literal: "`"}) {
+		if !p.expect(token{Type: tokenType_SYMBOL, Literal: "`"}) {
 			return ColumnNode{}, fmt.Errorf("<column> expected <symbol(`)>, got %v", t.String())
 		}
 		return column, nil
@@ -717,11 +716,12 @@ func (p *parser) table() (TableNode, error) {
 		return TableNode{Name: t.Literal}, nil
 	}
 	if p.expect(token{Type: tokenType_SYMBOL, Literal: "`"}) {
+		t := p.consume()
 		if t.Type != tokenType_IDENTIFIER {
 			return TableNode{}, fmt.Errorf("<table> expected <identifier>, got %v", t.String())
 		}
 		table := TableNode{Name: t.Literal}
-		if p.expect(token{Type: tokenType_SYMBOL, Literal: "`"}) {
+		if !p.expect(token{Type: tokenType_SYMBOL, Literal: "`"}) {
 			return TableNode{}, fmt.Errorf("<table> expected <symbol(`)>, got %v", t.String())
 		}
 		return table, nil
@@ -778,4 +778,26 @@ func (p *parser) value() (SQLNode, error) {
 		}
 	}
 	return nil, fmt.Errorf("<value> got unexpected token %v", t.String())
+}
+
+func (p *parser) diagnostics() string {
+	diagnostics := ""
+	start := 0
+	end := 0
+	for i, t := range p.tokens {
+		if i == p.cursor {
+			start = len(diagnostics)
+			end = start + len(t.toSQL())
+		}
+		diagnostics += t.toSQL() + " "
+	}
+	diagnostics += "\n"
+	for i := 0; i < start; i++ {
+		diagnostics += " "
+	}
+	for i := start; i < end; i++ {
+		diagnostics += "^"
+	}
+	diagnostics += "\n"
+	return diagnostics
 }
