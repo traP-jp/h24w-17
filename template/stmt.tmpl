@@ -103,12 +103,12 @@ func (s *CustomCacheStatement) execUpdate(args []driver.Value) (driver.Result, e
 		return s.inner.Exec(args)
 	}
 
-	pkValue := args[s.queryInfo.Update.Conditions[0].Placeholder.Index]
+	uniqueValue := args[s.queryInfo.Update.Conditions[0].Placeholder.Index]
 
 	for _, cache := range cacheByTable[table] {
 		if cache.uniqueOnly {
 			// we should forget the cache
-			cache.cache.Forget(cacheKey([]driver.Value{pkValue}))
+			cache.cache.Forget(cacheKey([]driver.Value{uniqueValue}))
 		} else {
 			cache.cache.Purge()
 		}
@@ -135,13 +135,13 @@ func (s *CustomCacheStatement) execDelete(args []driver.Value) (driver.Result, e
 		return s.inner.Exec(args)
 	}
 
-	pkValue := args[s.queryInfo.Delete.Conditions[0].Placeholder.Index]
+	uniqueValue := args[s.queryInfo.Delete.Conditions[0].Placeholder.Index]
 
 	for _, cache := range cacheByTable[table] {
 		if cache.uniqueOnly {
 			// query like "SELECT * FROM table WHERE pk = ?"
 			// we should forget the cache
-			cache.cache.Forget(cacheKey([]driver.Value{pkValue}))
+			cache.cache.Forget(cacheKey([]driver.Value{uniqueValue}))
 		} else {
 			cache.cache.Purge()
 		}
