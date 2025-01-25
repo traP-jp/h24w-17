@@ -87,10 +87,10 @@ func (l *lexer) NextToken() token {
 	}
 
 	str := l.input[l.pos:]
-	reserved := []string{"SELECT", "FROM", "AS", "UPDATE", "SET", "DELETE", "INSERT", "INTO", "VALUES", "WHERE", "AND", "IN", "LIKE", "GROUP BY", "ORDER BY", "ASC", "DESC", "LIMIT", "OFFSET"}
+	reserved := []string{"SELECT", "FROM", "AS", "UPDATE", "SET", "DELETE", "INSERT", "INTO", "VALUES", "WHERE", "AND", "IN", "LIKE", "GROUP BY", "ORDER BY", "ASC", "DESC", "LIMIT", "OFFSET", "COUNT", "SUM", "AVG", "MAX", "MIN"}
 	for _, r := range reserved {
-		if strings.HasPrefix(strings.ToUpper(str), r+" ") {
-			l.pos += len(r) + 1
+		if strings.HasPrefix(strings.ToUpper(str), r) && (len(str) == len(r) || !isLetter(str[len(r)])) {
+			l.pos += len(r)
 			return token{Type: tokenType_RESERVED, Literal: r}
 		}
 	}
