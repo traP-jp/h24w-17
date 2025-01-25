@@ -647,8 +647,9 @@ func (p *parser) limit() (LimitNode, error) {
 }
 
 func (p *parser) offset() (OffsetNode, error) {
-	t := p.consume()
+	t := p.peek()
 	if t.Type == tokenType_NUMBER {
+		p.consume()
 		parsed, err := strconv.Atoi(t.Literal)
 		if err != nil {
 			return OffsetNode{}, fmt.Errorf("<offset> failed to parse number %v", err)

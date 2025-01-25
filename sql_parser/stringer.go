@@ -60,6 +60,9 @@ func (n UpdateStmtNode) String() string {
 	if n.Conditions != nil {
 		sql += fmt.Sprintf(" WHERE %s", n.Conditions.String())
 	}
+	if n.Orders != nil {
+		sql += fmt.Sprintf(" ORDER BY %s", n.Orders.String())
+	}
 	if n.Limit != nil {
 		sql += fmt.Sprintf(" LIMIT %s", n.Limit.String())
 	}
@@ -95,6 +98,9 @@ func (n DeleteStmtNode) String() string {
 	sql := fmt.Sprintf("DELETE FROM %s", n.Table.String())
 	if n.Conditions != nil {
 		sql += fmt.Sprintf(" WHERE %s", n.Conditions.String())
+	}
+	if n.Orders != nil {
+		sql += fmt.Sprintf(" ORDER BY %s", n.Orders.String())
 	}
 	if n.Limit != nil {
 		sql += fmt.Sprintf(" LIMIT %s", n.Limit.String())
