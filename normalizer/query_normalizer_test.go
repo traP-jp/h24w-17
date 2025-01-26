@@ -12,6 +12,10 @@ func TestNormalizeQuery(t *testing.T) {
 		expected string
 	}{
 		{
+			query:    "   SELECT * from `table`;   ",
+			expected: "SELECT * from `table`;",
+		},
+		{
 			query:    "SELECT `id` from `table`;",
 			expected: "SELECT `id` from `table`;",
 		},
