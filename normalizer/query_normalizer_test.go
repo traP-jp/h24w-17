@@ -12,24 +12,28 @@ func TestNormalizeQuery(t *testing.T) {
 		expected string
 	}{
 		{
-			query:    "   SELECT * from `table`;   ",
-			expected: "SELECT * from `table`;",
+			query:    "   SELECT * from table;   ",
+			expected: "SELECT * from table;",
 		},
 		{
-			query:    "SELECT `id` from `table`;",
-			expected: "SELECT `id` from `table`;",
+			query:    "SELECT *   \t\n from table;",
+			expected: "SELECT * from table;",
+		},
+		{
+			query:    "SELECT `id` from table;",
+			expected: "SELECT id from table;",
 		},
 		{
 			query:    "INSERT INTO table (name, col) VALUES (?, ?);",
 			expected: "INSERT INTO table (name, col) VALUES (?);",
 		},
 		{
-			query:    "DELETE FROM `table` WHERE id IN (?, ?, ?, ?);",
-			expected: "DELETE FROM `table` WHERE id IN (?);",
+			query:    "DELETE FROM table WHERE id IN (?, ?, ?, ?);",
+			expected: "DELETE FROM table WHERE id IN (?);",
 		},
 		{
-			query:    "SELECT * FROM `table`",
-			expected: "SELECT * FROM `table`;",
+			query:    "SELECT * FROM table",
+			expected: "SELECT * FROM table;",
 		},
 	}
 	for _, tt := range tests {
