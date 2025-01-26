@@ -33,4 +33,5 @@ var generateCmd = &cobra.Command{
 func init() {
 	generateCmd.Flags().StringP("plan", "p", "isuc.yaml", "File containing the cache plan")
 	generateCmd.Flags().StringP("schema", "s", "schema.sql", "File containing the table schema")
+	rootCmd.AddCommand(generateCmd)
 }
