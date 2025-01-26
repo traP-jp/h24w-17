@@ -23,6 +23,10 @@ func TestParseSQLWeekly(t *testing.T) {
 			query: "UPDATE users SET del_flg = 1 WHERE id % 50 = 0",
 			node:  UpdateStmtNode{Table: TableNode{Name: "users"}},
 		},
+		{
+			query: "DELETE FROM livecomments WHERE id = ? AND livestream_id = ? AND (SELECT COUNT(*) FROM (SELECT ? AS text) AS texts INNER JOIN (SELECT CONCAT('%', ?, '%') AS pattern) AS patterns ON texts.text LIKE patterns.pattern) >= 1;",
+			node:  DeleteStmtNode{Table: TableNode{Name: "livecomments"}},
+		},
 	}
 
 	for _, test := range tests {

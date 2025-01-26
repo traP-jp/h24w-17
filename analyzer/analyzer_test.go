@@ -260,7 +260,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "UPDATE `users` SET `del_flg` = 1 WHERE `id` % 50 = 0;",
+							Query: "UPDATE users SET del_flg = 1 WHERE id % 50 = 0;",
 							Type:  domains.CachePlanQueryType_UPDATE,
 						},
 						Update: &domains.CachePlanUpdateQuery{
@@ -340,7 +340,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` WHERE `created_at` <= ? ORDER BY `created_at` DESC;",
+							Query: "SELECT id, user_id, body, mime, created_at FROM posts WHERE created_at <= ? ORDER BY created_at DESC;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{

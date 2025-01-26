@@ -45,18 +45,16 @@ func (a *analyzer) analyzeQueries(queries []string) (domains.CachePlan, error) {
 	planErr := &analyzerError{}
 	for _, query := range queries {
 		week := false
-		normalized := normalizer.NormalizeQuery(query)
-		parsed, err := sql_parser.ParseSQL(normalized)
+		query = normalizer.NormalizeQuery(query)
+		parsed, err := sql_parser.ParseSQL(query)
 		if err != nil {
 			weekParsed, weekErr := sql_parser.ParseSQLWeekly(query)
 			if weekErr != nil {
-				planErr.errors = append(planErr.errors, fmt.Errorf("failed to parse query: %s / %s", err, weekErr))
+				planErr.errors = append(planErr.errors, fmt.Errorf("failed to parse query:\nmain -> %s\nweek -> %s", err, weekErr))
 				continue
 			}
 			parsed = weekParsed
 			week = true
-			fmt.Printf("week: %s\n", query)
-			fmt.Printf("err: %s\n", err)
 		}
 		analyzed, err := a.analyzeQuery(parsed)
 		if err != nil {

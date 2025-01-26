@@ -24,6 +24,8 @@ func ParseSQLWeekly(query string) (SQLNode, error) {
 		return InsertStmtNode{Table: TableNode{Name: match["table"]}}, nil
 	}
 
+	// \n -> \\n
+	query = fmt.Sprintf("%q", query)
 	return nil, fmt.Errorf("failed to parse query: \"%s\"", query)
 }
 
