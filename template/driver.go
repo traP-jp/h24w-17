@@ -114,6 +114,9 @@ func (c *cacheConn) Prepare(rawQuery string) (driver.Stmt, error) {
 
 	queryInfo, ok := queryMap[normalizedQuery]
 	if !ok {
+		if !strings.HasPrefix(strings.ToUpper(normalizedQuery), "SELECT") {
+			PurgeAllCaches()
+		}
 		return c.inner.Prepare(rawQuery)
 	}
 

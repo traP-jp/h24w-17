@@ -101,6 +101,7 @@ var (
 	_ driver.ConnBeginTx    = &cacheConn{}
 	_ driver.Pinger         = &cacheConn{}
 	_ driver.QueryerContext = &cacheConn{}
+	_ driver.ExecerContext  = &cacheConn{}
 )
 
 type cacheConn struct {
@@ -112,6 +113,9 @@ func (c *cacheConn) Prepare(rawQuery string) (driver.Stmt, error) {
 
 	queryInfo, ok := queryMap[normalizedQuery]
 	if !ok {
+		if !strings.HasPrefix(strings.ToUpper(normalizedQuery), "SELECT") {
+			PurgeAllCaches()
+		}
 		return c.inner.Prepare(rawQuery)
 	}
 

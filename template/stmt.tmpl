@@ -209,6 +209,7 @@ func (c *cacheConn) ExecContext(ctx context.Context, rawQuery string, nvargs []d
 
 	queryInfo, ok := queryMap[normalizedQuery]
 	if !ok {
+		PurgeAllCaches()
 		return inner.ExecContext(ctx, rawQuery, nvargs)
 	}
 
