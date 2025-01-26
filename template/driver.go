@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"io"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -115,6 +116,7 @@ func (c *cacheConn) Prepare(rawQuery string) (driver.Stmt, error) {
 	queryInfo, ok := queryMap[normalizedQuery]
 	if !ok {
 		if !strings.HasPrefix(strings.ToUpper(normalizedQuery), "SELECT") {
+			log.Println("unknown query:", normalizedQuery)
 			PurgeAllCaches()
 		}
 		return c.inner.Prepare(rawQuery)

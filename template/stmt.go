@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"log"
 	"slices"
 	"strings"
 
@@ -209,6 +210,7 @@ func (c *cacheConn) ExecContext(ctx context.Context, rawQuery string, nvargs []d
 
 	queryInfo, ok := queryMap[normalizedQuery]
 	if !ok {
+		log.Println("unknown query:", normalizedQuery)
 		PurgeAllCaches()
 		return inner.ExecContext(ctx, rawQuery, nvargs)
 	}
