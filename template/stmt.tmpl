@@ -354,7 +354,7 @@ func (s *customCacheStatement) inQuery(args []driver.Value) (driver.Rows, error)
 		}
 	}
 	if cache == nil {
-		return nil, fmt.Errorf("cache not found for query %s", s.rawQuery)
+		return s.inner.Query(args)
 	}
 
 	allRows := make([]*cacheRows, 0, len(condValues))
@@ -433,7 +433,7 @@ func (c *cacheConn) inQuery(ctx context.Context, query string, args []driver.Nam
 		}
 	}
 	if cache == nil {
-		return nil, fmt.Errorf("cache not found for query %s", query)
+		return inner.QueryContext(ctx, query, args)
 	}
 
 	allRows := make([]*cacheRows, 0, len(condValues))
