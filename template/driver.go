@@ -102,6 +102,7 @@ var (
 	_ driver.ConnBeginTx    = &cacheConn{}
 	_ driver.Pinger         = &cacheConn{}
 	_ driver.QueryerContext = &cacheConn{}
+	_ driver.ExecerContext  = &cacheConn{}
 )
 
 type cacheConn struct {
