@@ -7,7 +7,7 @@ import (
 
 var spaceRegex = regexp.MustCompile(`\s+`)
 var inRegex = regexp.MustCompile(`IN\s+\((\?,\s*)+\?\)`)
-var valuesRegex = regexp.MustCompile(`VALUES\s+\((\?,\s*)+\?\)`)
+var valuesRegex = regexp.MustCompile(`VALUES\s*\((\?,\s*)+\?\)`)
 
 func NormalizeQuery(query string) string {
 	// remove spaces
