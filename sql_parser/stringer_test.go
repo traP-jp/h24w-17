@@ -16,10 +16,10 @@ func TestStringer(t *testing.T) {
 				Values: SelectValuesNode{Values: []SQLNode{SelectValueColumnNode{Column: ColumnNode{Name: "id"}}}},
 				Table:  TableNode{Name: "users"},
 			},
-			expected: "SELECT `id` FROM `users`;",
+			expected: "SELECT id FROM users;",
 		},
 		{
-			expected: "SELECT * FROM `users` WHERE `id` = ?;",
+			expected: "SELECT * FROM users WHERE id = ?;",
 			input: SelectStmtNode{
 				Values: SelectValuesNode{Values: []SQLNode{SelectValueAsteriskNode{}}},
 				Table:  TableNode{Name: "users"},
@@ -56,7 +56,7 @@ func TestStringer(t *testing.T) {
 					},
 				},
 			},
-			expected: "SELECT `name`, `age` FROM `users` WHERE `age` > 18 AND `name` LIKE '%test%';",
+			expected: "SELECT name, age FROM users WHERE age > 18 AND name LIKE '%test%';",
 		},
 		{
 			input: SelectStmtNode{
@@ -72,7 +72,7 @@ func TestStringer(t *testing.T) {
 					},
 				},
 			},
-			expected: "SELECT * FROM `users` WHERE `id` IN (1, 2, 3);",
+			expected: "SELECT * FROM users WHERE id IN (1, 2, 3);",
 		},
 		{
 			input: SelectStmtNode{
@@ -103,7 +103,7 @@ func TestStringer(t *testing.T) {
 				Limit:  &LimitNode{Limit: NumberNode{Value: 10}},
 				Offset: &OffsetNode{Offset: NumberNode{Value: 0}},
 			},
-			expected: "SELECT COUNT(*) FROM `users` WHERE `id` = ? AND `name` = 'Alice' ORDER BY `id` ASC LIMIT 10 OFFSET 0;",
+			expected: "SELECT COUNT(*) FROM users WHERE id = ? AND name = 'Alice' ORDER BY id ASC LIMIT 10 OFFSET 0;",
 		},
 		{
 			input: UpdateStmtNode{
@@ -124,7 +124,7 @@ func TestStringer(t *testing.T) {
 					},
 				},
 			},
-			expected: "UPDATE `users` SET `name` = 'Bob', `age` = 20 WHERE `id` = ?;",
+			expected: "UPDATE users SET name = 'Bob', age = 20 WHERE id = ?;",
 		},
 		{
 			input: DeleteStmtNode{
@@ -139,7 +139,7 @@ func TestStringer(t *testing.T) {
 					},
 				},
 			},
-			expected: "DELETE FROM `users` WHERE `id` = ?;",
+			expected: "DELETE FROM users WHERE id = ?;",
 		},
 		{
 			input: InsertStmtNode{
@@ -151,7 +151,7 @@ func TestStringer(t *testing.T) {
 					Values: []SQLNode{StringNode{Value: "Cathy"}, NumberNode{Value: 30}},
 				},
 			},
-			expected: "INSERT INTO `users` (`name`, `age`) VALUES ('Cathy', 30);",
+			expected: "INSERT INTO users (name, age) VALUES ('Cathy', 30);",
 		},
 	}
 

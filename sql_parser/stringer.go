@@ -195,13 +195,13 @@ func (n ColumnsNode) String() string {
 var _ SQLNode = ColumnNode{}
 
 func (n ColumnNode) String() string {
-	return fmt.Sprintf("`%s`", n.Name)
+	return n.Name
 }
 
 var _ SQLNode = TableNode{}
 
 func (n TableNode) String() string {
-	return fmt.Sprintf("`%s`", n.Name)
+	return n.Name
 }
 
 var _ SQLNode = ValuesNode{}
