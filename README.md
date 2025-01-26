@@ -1,5 +1,7 @@
 # isuc
 
+*auto-caching database driver for ISUCON*
+
 ## How to use
 
 1. Extract the queries [statically](#static-extractor) or [dynamically](#dynamic-extractor)
