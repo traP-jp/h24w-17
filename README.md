@@ -8,6 +8,7 @@
 2. [Get your table schema](#getting-table-schemas)
 3. [Generate cache plan](#generate-cache-plan)
 4. [Generate the driver](#generate-the-driver)
+5. [Switch the driver](#switch-the-driver)
 
 ### Extractor
 
@@ -85,6 +86,15 @@ go run cli/*.go generate --plan isuc.yaml --schema schema.sql <dist>
 - `--schema` represents the table schema sql
   - Set to `schema.sql` by default
 - `<dist>` represents the destination folder (must exist) that the generated driver will be stored into
+
+### Switch the driver
+
+Rewrite the section of connecting to a database.
+
+```diff
+- db, err := sql.Open("mysql", {dsn})
++ db, err := sql.Open("mysql+cache", {dsn})
+```
 
 ## Appendix
 
