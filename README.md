@@ -2,9 +2,14 @@
 
 ## How to use
 
-## Extractor
+1. Extract the queries [statically](#static-extractor) or [dynamically](#dynamic-extractor)
+2. [Get your table schema](#getting-table-schemas)
+3. [Generate cache plan](#generate-cache-plan)
+4. [Generate the driver](#generate-the-driver)
 
-### Static Extractor
+### Extractor
+
+#### Static Extractor
 
 <!-- TODO: rewrite for production usage (not need to clone repository) -->
 
@@ -12,10 +17,10 @@
   - Set to `extracted.sql` by default
 
 ```sh
-go run cli/main.go extract --out extracted.sql /path/to/your/codebase/dir
+go run cli/*.go extract --out extracted.sql /path/to/your/codebase/dir
 ```
 
-### Dynamic Extractor
+#### Dynamic Extractor
 
 1. add import statement
 
@@ -38,27 +43,51 @@ func main() {
 4. running your application
 5. access `http://localhost:39393` and get the query list
 
-## Getting Table Schemas
+### Getting Table Schemas
+
+If you do not have the `schema.sql`, you can generate it by the command below (you should change the auth info)
 
 ```sh
-DATABASE='isupipe'
-mysql -u root -ppass -h 127.0.0.1 -N -e "SHOW TABLES FROM $DATABASE" | while read table; do mysql -u root -ppass -h 127.0.0.1 -e "SHOW CREATE TABLE $DATABASE.\`$table\`" | awk 'NR>1 {$1=""; print substr($0,2) ";"}' | sed 's/\\n/\n/g'; done > schema.sql
+DATABASE='YOUR_DATABASE'
+USER='YOUR_DATABASE_USER'
+PASSWORD='YOUR_DATABASE_PASSWORD'
+HOST='YOUR_DATABASE_HOST'
+mysql -u "$USER" -p"$PASSWORD" -h "$HOST" -N -e "SHOW TABLES FROM $DATABASE" | while read table; do mysql -u "$USER" -p"$PASSWORD" -h "$HOST" -e "SHOW CREATE TABLE $DATABASE.\`$table\`" | awk 'NR>1 {$1=""; print substr($0,2) ";"}' | sed 's/\\n/\n/g'; done > schema.sql
 ```
 
-## Generate Cache Plan
+### Generate Cache Plan
 
 <!-- TODO: rewrite for production usage (not need to clone repository) -->
 
+```sh
+go run cli/*.go analyze --sql extracted.sql --schema schema.sql --out isuc.yaml
+```
+
 - `--sql` represents extracted queries (via the static/dynamic extractor)
   - Set to `extracted.sql` by default
+- `--schema` represents the table schema sql
+  - Set to `schema.sql` by default
 - `--out` is the destination file of the cache plan
   - Set to `isuc.yaml` by default
 
+### Generate the driver
+
+<!-- TODO: rewrite for production usage (not need to clone repository) -->
+
 ```sh
-go run cli/main.go analyze --sql extracted.sql --out isuc.yaml
+go run cli/*.go generate --plan isuc.yaml --schema schema.sql <dist>
 ```
 
-### Format
+- `--plan` represents generated cache plan
+  - Set to `isuc.yaml` by default
+- `--schema` represents the table schema sql
+  - Set to `schema.sql` by default
+- `<dist>` represents the destination folder (must exist) that the generated driver will be stored into
+
+## Appendix
+
+
+### Cache Plan Format
 
 ```ts
 type Format = {
