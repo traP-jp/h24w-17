@@ -42,7 +42,7 @@ func TestAnalyzeQueries(t *testing.T) {
 				Queries: []*domains.CachePlanQuery{
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT `id` FROM `users`;",
+							Query: "SELECT id FROM users;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{
@@ -55,7 +55,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT * FROM `users` WHERE `id` = ?;",
+							Query: "SELECT * FROM users WHERE id = ?;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{
@@ -70,7 +70,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT * FROM `users` WHERE `id` = ? AND `name` = ?;",
+							Query: "SELECT * FROM users WHERE id = ? AND name = ?;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{
@@ -86,7 +86,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT * FROM `users` ORDER BY `created_at` DESC LIMIT ? OFFSET ?;",
+							Query: "SELECT * FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{
@@ -104,7 +104,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "UPDATE `users` SET `name` = ? WHERE `id` = ?;",
+							Query: "UPDATE users SET name = ? WHERE id = ?;",
 							Type:  domains.CachePlanQueryType_UPDATE,
 						},
 						Update: &domains.CachePlanUpdateQuery{
@@ -115,7 +115,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "UPDATE `users` SET `name` = ? WHERE `id` IN (?);",
+							Query: "UPDATE users SET name = ? WHERE id IN (?);",
 							Type:  domains.CachePlanQueryType_UPDATE,
 						},
 						Update: &domains.CachePlanUpdateQuery{
@@ -126,7 +126,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "DELETE FROM `users` WHERE `id` = ?;",
+							Query: "DELETE FROM users WHERE id = ?;",
 							Type:  domains.CachePlanQueryType_DELETE,
 						},
 						Delete: &domains.CachePlanDeleteQuery{
@@ -136,7 +136,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "DELETE FROM `users` WHERE `id` IN (?);",
+							Query: "DELETE FROM users WHERE id IN (?);",
 							Type:  domains.CachePlanQueryType_DELETE,
 						},
 						Delete: &domains.CachePlanDeleteQuery{
@@ -146,7 +146,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "INSERT INTO `users` (`name`, `username`, `created_at`) VALUES (?);",
+							Query: "INSERT INTO users (name, username, created_at) VALUES (?);",
 							Type:  domains.CachePlanQueryType_INSERT,
 						},
 						Insert: &domains.CachePlanInsertQuery{
@@ -220,7 +220,7 @@ func TestAnalyzeQueries(t *testing.T) {
 				Queries: []*domains.CachePlanQuery{
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "DELETE FROM `users` WHERE `id` > 1000;",
+							Query: "DELETE FROM users WHERE id > 1000;",
 							Type:  domains.CachePlanQueryType_DELETE,
 						},
 						Delete: &domains.CachePlanDeleteQuery{
@@ -230,7 +230,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT COUNT(*) FROM `comments` WHERE `post_id` IN (?);",
+							Query: "SELECT COUNT(*) FROM comments WHERE post_id IN (?);",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{
@@ -245,7 +245,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT COUNT(*) FROM `comments` WHERE `post_id` = ?;",
+							Query: "SELECT COUNT(*) FROM comments WHERE post_id = ?;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{
@@ -270,7 +270,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` WHERE `user_id` = ? ORDER BY `created_at` DESC;",
+							Query: "SELECT id, user_id, body, mime, created_at FROM posts WHERE user_id = ? ORDER BY created_at DESC;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{
@@ -287,7 +287,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "INSERT INTO `comments` (`post_id`, `user_id`, `comment`) VALUES (?);",
+							Query: "INSERT INTO comments (post_id, user_id, comment) VALUES (?);",
 							Type:  domains.CachePlanQueryType_INSERT,
 						},
 						Insert: &domains.CachePlanInsertQuery{
@@ -297,7 +297,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "UPDATE `users` SET `del_flg` = ?;",
+							Query: "UPDATE users SET del_flg = ?;",
 							Type:  domains.CachePlanQueryType_UPDATE,
 						},
 						Update: &domains.CachePlanUpdateQuery{
@@ -308,7 +308,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT * FROM `comments` WHERE `post_id` = ? ORDER BY `created_at` DESC;",
+							Query: "SELECT * FROM comments WHERE post_id = ? ORDER BY created_at DESC;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{
@@ -325,7 +325,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT * FROM `users` WHERE `id` = ?;",
+							Query: "SELECT * FROM users WHERE id = ?;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{
@@ -350,7 +350,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "INSERT INTO `posts` (`user_id`, `mime`, `imgdata`, `body`) VALUES (?);",
+							Query: "INSERT INTO posts (user_id, mime, imgdata, body) VALUES (?);",
 							Type:  domains.CachePlanQueryType_INSERT,
 						},
 						Insert: &domains.CachePlanInsertQuery{
@@ -360,7 +360,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT 1 FROM `users` WHERE `account_name` = ?;",
+							Query: "SELECT 1 FROM users WHERE account_name = ?;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{
@@ -375,7 +375,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` ORDER BY `created_at` DESC;",
+							Query: "SELECT id, user_id, body, mime, created_at FROM posts ORDER BY created_at DESC;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{
@@ -390,7 +390,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT COUNT(*) FROM `comments` WHERE `post_id` = ?;",
+							Query: "SELECT COUNT(*) FROM comments WHERE post_id = ?;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{
@@ -405,7 +405,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "INSERT INTO `users` (`account_name`, `passhash`) VALUES (?);",
+							Query: "INSERT INTO users (account_name, passhash) VALUES (?);",
 							Type:  domains.CachePlanQueryType_INSERT,
 						},
 						Insert: &domains.CachePlanInsertQuery{
@@ -415,7 +415,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT * FROM `users` WHERE `account_name` = ? AND `del_flg` = ?;",
+							Query: "SELECT * FROM users WHERE account_name = ? AND del_flg = ?;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{
@@ -431,7 +431,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT * FROM `posts` WHERE `id` = ?;",
+							Query: "SELECT * FROM posts WHERE id = ?;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{
@@ -446,7 +446,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "DELETE FROM `posts` WHERE `id` > 10000;",
+							Query: "DELETE FROM posts WHERE id > 10000;",
 							Type:  domains.CachePlanQueryType_DELETE,
 						},
 						Delete: &domains.CachePlanDeleteQuery{
@@ -456,7 +456,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "DELETE FROM `comments` WHERE `id` > 100000;",
+							Query: "DELETE FROM comments WHERE id > 100000;",
 							Type:  domains.CachePlanQueryType_DELETE,
 						},
 						Delete: &domains.CachePlanDeleteQuery{
@@ -466,7 +466,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT * FROM `comments` WHERE `post_id` = ? ORDER BY `created_at` DESC LIMIT ?;",
+							Query: "SELECT * FROM comments WHERE post_id = ? ORDER BY created_at DESC LIMIT ?;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{
@@ -484,7 +484,7 @@ func TestAnalyzeQueries(t *testing.T) {
 					},
 					{
 						CachePlanQueryBase: &domains.CachePlanQueryBase{
-							Query: "SELECT `id` FROM `posts` WHERE `user_id` = ?;",
+							Query: "SELECT id FROM posts WHERE user_id = ?;",
 							Type:  domains.CachePlanQueryType_SELECT,
 						},
 						Select: &domains.CachePlanSelectQuery{

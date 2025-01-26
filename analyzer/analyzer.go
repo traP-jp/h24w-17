@@ -55,6 +55,8 @@ func (a *analyzer) analyzeQueries(queries []string) (domains.CachePlan, error) {
 			}
 			parsed = weekParsed
 			week = true
+			fmt.Printf("week: %s\n", query)
+			fmt.Printf("err: %s\n", err)
 		}
 		analyzed, err := a.analyzeQuery(parsed)
 		if err != nil {

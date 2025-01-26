@@ -186,6 +186,28 @@ func TestLexer(t *testing.T) {
 				{Type: tokenType_EOF, Literal: ""},
 			},
 		},
+		{
+			input: "SELECT COUNT(*) AS count FROM `comments` WHERE `post_id` IN (?);",
+			expected: []token{
+				{Type: tokenType_RESERVED, Literal: "SELECT"},
+				{Type: tokenType_RESERVED, Literal: "COUNT"},
+				{Type: tokenType_SYMBOL, Literal: "("},
+				{Type: tokenType_SYMBOL, Literal: "*"},
+				{Type: tokenType_SYMBOL, Literal: ")"},
+				{Type: tokenType_RESERVED, Literal: "AS"},
+				{Type: tokenType_IDENTIFIER, Literal: "count"},
+				{Type: tokenType_RESERVED, Literal: "FROM"},
+				{Type: tokenType_IDENTIFIER, Literal: "comments"},
+				{Type: tokenType_RESERVED, Literal: "WHERE"},
+				{Type: tokenType_IDENTIFIER, Literal: "post_id"},
+				{Type: tokenType_RESERVED, Literal: "IN"},
+				{Type: tokenType_SYMBOL, Literal: "("},
+				{Type: tokenType_SYMBOL, Literal: "?"},
+				{Type: tokenType_SYMBOL, Literal: ")"},
+				{Type: tokenType_SYMBOL, Literal: ";"},
+				{Type: tokenType_EOF, Literal: ""},
+			},
+		},
 	}
 
 	for _, test := range tests {
