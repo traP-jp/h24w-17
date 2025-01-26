@@ -3,9 +3,9 @@ package analyzer
 import (
 	"fmt"
 
-	"github.com/traP-jp/h24w-17/domains"
-	"github.com/traP-jp/h24w-17/normalizer"
-	"github.com/traP-jp/h24w-17/sql_parser"
+	"github.com/traP-jp/isuc/domains"
+	"github.com/traP-jp/isuc/normalizer"
+	"github.com/traP-jp/isuc/sql_parser"
 )
 
 func AnalyzeQueries(queries []string, schemas []domains.TableSchema) (domains.CachePlan, error) {

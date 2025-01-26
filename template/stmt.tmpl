@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/motoki317/sc"
-	"github.com/traP-jp/h24w-17/domains"
-	"github.com/traP-jp/h24w-17/normalizer"
+	"github.com/traP-jp/isuc/domains"
+	"github.com/traP-jp/isuc/normalizer"
 )
 
 type (

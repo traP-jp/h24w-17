@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	static_extractor "github.com/traP-jp/h24w-17/extractor/static"
+	static_extractor "github.com/traP-jp/isuc/extractor/static"
 )
 
 var extractCmd = &cobra.Command{

@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/traP-jp/h24w-17/analyzer"
-	"github.com/traP-jp/h24w-17/domains"
+	"github.com/traP-jp/isuc/analyzer"
+	"github.com/traP-jp/isuc/domains"
 )
 
 var analyzeCmd = &cobra.Command{

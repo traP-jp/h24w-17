@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/traP-jp/h24w-17/testutil"
+	"github.com/traP-jp/isuc/testutil"
 )
 
 func TestMain(m *testing.M) {

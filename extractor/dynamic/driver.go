@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-sql-driver/mysql"
-	"github.com/traP-jp/h24w-17/normalizer"
+	"github.com/traP-jp/isuc/normalizer"
 )
 
 func init() {

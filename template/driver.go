@@ -12,8 +12,8 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/motoki317/sc"
-	"github.com/traP-jp/h24w-17/domains"
-	"github.com/traP-jp/h24w-17/normalizer"
+	"github.com/traP-jp/isuc/domains"
+	"github.com/traP-jp/isuc/normalizer"
 )
 
 var queryMap = make(map[string]domains.CachePlanQuery)

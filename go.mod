@@ -1,4 +1,4 @@
-module github.com/traP-jp/h24w-17
+module github.com/traP-jp/isuc
 
 go 1.23.2
 

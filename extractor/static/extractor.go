@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/traP-jp/h24w-17/normalizer"
+	"github.com/traP-jp/isuc/normalizer"
 )
 
 var sqlPattern = regexp.MustCompile(`^(SELECT|INSERT|UPDATE|DELETE)\b`)

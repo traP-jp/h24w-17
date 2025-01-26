@@ -3,7 +3,7 @@ package normalizer
 import (
 	"fmt"
 
-	"github.com/traP-jp/h24w-17/sql_parser"
+	"github.com/traP-jp/isuc/sql_parser"
 )
 
 type ExtraArg struct {

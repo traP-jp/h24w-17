@@ -21,7 +21,7 @@ go run cli/main.go extract --out extracted.sql /path/to/your/codebase/dir
 
 ```go
 import (
-  dynamic_extractor "github.com/traP-jp/h24w-17/extractor/dynamic"
+  dynamic_extractor "github.com/traP-jp/isuc/extractor/dynamic"
 )
 ```
 

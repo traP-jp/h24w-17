@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/traP-jp/h24w-17/domains"
+	"github.com/traP-jp/isuc/domains"
 )
 
 func TestAnalyzeQueries(t *testing.T) {

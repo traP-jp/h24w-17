@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	h24w17 "github.com/traP-jp/h24w-17"
+	h24w17 "github.com/traP-jp/isuc"
 )
 
 var generateCmd = &cobra.Command{
