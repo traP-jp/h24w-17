@@ -389,6 +389,8 @@ func (c *cacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []
 	queryInfo, ok := queryMap[normalizedQuery]
 	if !ok {
 		return inner.QueryContext(ctx, rawQuery, nvargs)
+	} else if strings.Contains(normalizedQuery, "FOR UPDATE") {
+		return inner.QueryContext(ctx, rawQuery, nvargs)
 	}
 	if queryInfo.Type != domains.CachePlanQueryType_SELECT || !queryInfo.Select.Cache {
 		return inner.QueryContext(ctx, rawQuery, nvargs)

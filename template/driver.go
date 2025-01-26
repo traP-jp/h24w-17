@@ -120,6 +120,8 @@ func (c *cacheConn) Prepare(rawQuery string) (driver.Stmt, error) {
 			PurgeAllCaches()
 		}
 		return c.inner.Prepare(rawQuery)
+	} else if strings.Contains(normalizedQuery, "FOR UPDATE") {
+		return c.inner.Prepare(rawQuery)
 	}
 
 	if queryInfo.Type == domains.CachePlanQueryType_SELECT && !queryInfo.Select.Cache {
