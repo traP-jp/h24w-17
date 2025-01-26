@@ -32,12 +32,16 @@ func TestNormalizeQuery(t *testing.T) {
 			expected: "DELETE FROM table WHERE id IN (?);",
 		},
 		{
+			query:    "DELETE FROM table WHERE id IN(?, ?, ?, ?);",
+			expected: "DELETE FROM table WHERE id IN (?);",
+		},
+		{
 			query:    "SELECT * FROM table",
 			expected: "SELECT * FROM table;",
 		},
 		{
 			query:    "INSERT INTO users (name, display_name, description, password) VALUES(?, ?, ?, ?);",
-			expected: "INSERT INTO users (name, display_name, description, password) VALUES(?);",
+			expected: "INSERT INTO users (name, display_name, description, password) VALUES (?);",
 		},
 	}
 	for _, tt := range tests {
