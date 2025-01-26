@@ -1,19 +1,21 @@
 package dynamic_extractor
 
-var queries = map[string]struct{}{}
+import "sync"
+
+var queries sync.Map
 
 func deleteAllQueries() {
-	queries = make(map[string]struct{})
+	queries.Clear()
 }
 
 func addQuery(query string) {
-	queries[query] = struct{}{}
+	queries.Store(query, struct{}{})
 }
 
 func getQueries() []string {
-	ret := make([]string, 0, len(queries))
-	for query := range queries {
-		ret = append(ret, query)
+	ret := make([]string, 0)
+	for query := range queries.Range {
+		ret = append(ret, query.(string))
 	}
 	return ret
 }
