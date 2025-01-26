@@ -12,7 +12,7 @@ import (
 	"github.com/traP-jp/h24w-17/normalizer"
 )
 
-var sqlPattern = regexp.MustCompile(`(?i)\b(SELECT|INSERT|UPDATE|DELETE)\b`)
+var sqlPattern = regexp.MustCompile(`^(SELECT|INSERT|UPDATE|DELETE)\b`)
 var replacePattern = regexp.MustCompile(`\s+`)
 
 type ExtractedQuery struct {
