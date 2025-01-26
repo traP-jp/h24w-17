@@ -2,15 +2,14 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
 	static_extractor "github.com/traP-jp/h24w-17/extractor/static"
 )
 
-var rootCmd = &cobra.Command{
-	Use:       "query-extractor",
+var extractCmd = &cobra.Command{
+	Use:       "extract",
 	Long:      "Statistically analyze the codebase and extract SQL queries",
 	Args:      cobra.ExactArgs(1),
 	ValidArgs: []string{"path"},
@@ -57,13 +56,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func main() {
-	err := rootCmd.Execute()
-	if err != nil {
-		os.Exit(1)
-	}
-}
-
 func init() {
-	rootCmd.Flags().StringP("out", "o", "extracted.sql", "Destination file that extracted queries will be written to")
+	extractCmd.Flags().StringP("out", "o", "extracted.sql", "Destination file that extracted queries will be written to")
+	rootCmd.AddCommand(extractCmd)
 }
