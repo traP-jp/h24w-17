@@ -44,10 +44,8 @@ func TestCacheRows(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		cacheRows = newCacheRows(rows)
-		defer cacheRows.Close()
-
-		return cacheRows.createCache()
+		cacheRows, err = newCacheRows(rows)
+		return err
 	})
 	if err != nil {
 		t.Error(err)
