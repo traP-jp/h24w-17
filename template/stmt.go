@@ -3,22 +3,12 @@ package template
 import (
 	"context"
 	"database/sql/driver"
-	"fmt"
 	"log"
 	"slices"
-	"strings"
 
 	"github.com/motoki317/sc"
 	"github.com/traP-jp/isuc/domains"
 	"github.com/traP-jp/isuc/normalizer"
-)
-
-type (
-	queryKey          struct{}
-	stmtKey           struct{}
-	argsKey           struct{}
-	queryerCtxKey     struct{}
-	namedValueArgsKey struct{}
 )
 
 type cacheWithInfo struct {
@@ -32,30 +22,6 @@ type cacheWithInfo struct {
 var caches = make(map[string]cacheWithInfo)
 
 var cacheByTable = make(map[string][]cacheWithInfo)
-
-func ExportMetrics() string {
-	res := ""
-	for query, cache := range caches {
-		stats := cache.cache.Stats()
-		progress := "["
-		for i := 0; i < 20; i++ {
-			if i < int(stats.HitRatio()*20) {
-				progress += "#"
-			} else {
-				progress += "-"
-			}
-		}
-		statsStr := fmt.Sprintf("%s (%.2f%% - %d/%d) (%d replace) (size %d)", progress, stats.HitRatio()*100, stats.Hits, stats.Misses+stats.Hits, stats.Replacements, stats.Size)
-		res += fmt.Sprintf("query: \"%s\"\n%s\n\n", query, statsStr)
-	}
-	return res
-}
-
-func PurgeAllCaches() {
-	for _, cache := range caches {
-		cache.cache.Purge()
-	}
-}
 
 var _ driver.Stmt = &customCacheStatement{}
 
@@ -85,119 +51,25 @@ func (s *customCacheStatement) Exec(args []driver.Value) (driver.Result, error) 
 	case domains.CachePlanQueryType_DELETE:
 		return s.execDelete(args)
 	}
-	return s.inner.Exec(args)
-}
 
-func execInsert(queryInfo domains.CachePlanQuery, args []driver.Value) {
-	table := queryInfo.Insert.Table
-	normalizedArgs, _ := normalizer.NormalizeArgs(queryInfo.Query)
-
-	rows := slices.Chunk(args, len(queryInfo.Insert.Columns))
-
-	for _, cache := range cacheByTable[table] {
-		if cache.uniqueOnly {
-			// no need to purge
-			continue
-		}
-
-		selectConditions := cache.info.Conditions
-		if len(selectConditions) != 1 || len(normalizedArgs.ExtraArgs) != 0 || selectConditions[0].Operator != domains.CachePlanOperator_EQ {
-			cache.cache.Purge()
-			continue
-		}
-
-		selectCondition := selectConditions[0]
-		insertColumnIdx := slices.Index(queryInfo.Insert.Columns, selectCondition.Column)
-		if insertColumnIdx >= 0 {
-			// insert query is like "INSERT INTO table (col1, col2, ...) VALUES (?, ?, ...)"
-			// select query is like "SELECT * FROM table WHERE col1 = ?"
-			// forget the cache
-			for row := range rows {
-				cache.cache.Forget(cacheKey([]driver.Value{row[insertColumnIdx]}))
-			}
-		} else {
-			cache.cache.Purge()
-		}
-	}
+	return s.inner.(driver.StmtExecContext).ExecContext(context.Background(), valueToNamedValue(args))
 }
 
 func (s *customCacheStatement) execInsert(args []driver.Value) (driver.Result, error) {
-	execInsert(s.queryInfo, args)
-	return s.inner.Exec(args)
+	handleInsertQuery(s.query, *s.queryInfo.Insert, args)
+	return s.inner.(driver.StmtExecContext).ExecContext(context.Background(), valueToNamedValue(args))
 }
 
 func (s *customCacheStatement) execUpdate(args []driver.Value) (driver.Result, error) {
-	// TODO: support composite primary key and other unique key
-	table := s.queryInfo.Update.Table
-
-	// if query is like "UPDATE table SET ... WHERE pk = ?"
-	var updateByUnique bool
-	if len(s.queryInfo.Update.Conditions) == 1 {
-		condition := s.queryInfo.Update.Conditions[0]
-		column := tableSchema[table].Columns[condition.Column]
-		updateByUnique = (column.IsPrimary || column.IsUnique) && condition.Operator == domains.CachePlanOperator_EQ
-	}
-	if !updateByUnique {
-		for _, cache := range cacheByTable[table] {
-			if !usedBySelectQuery(cache.info.Targets, s.queryInfo.Update.Targets) {
-				// no need to purge because the cache does not contain the updated column
-				continue
-			}
-			// we should purge all cache
-			cache.cache.Purge()
-		}
-		return s.inner.Exec(args)
-	}
-
-	uniqueValue := args[s.queryInfo.Update.Conditions[0].Placeholder.Index]
-
-	for _, cache := range cacheByTable[table] {
-		if cache.uniqueOnly && usedBySelectQuery(cache.info.Targets, s.queryInfo.Update.Targets) {
-			// we should forget the cache
-			cache.cache.Forget(cacheKey([]driver.Value{uniqueValue}))
-		} else {
-			if !usedBySelectQuery(cache.info.Targets, s.queryInfo.Update.Targets) {
-				// no need to purge because the cache does not contain the updated column
-				continue
-			}
-			cache.cache.Purge()
-		}
-	}
-
-	return s.inner.Exec(args)
+	handleUpdateQuery(*s.queryInfo.Update, args)
+	nvarsgs := valueToNamedValue(args)
+	return s.inner.(driver.StmtExecContext).ExecContext(context.Background(), nvarsgs)
 }
 
 func (s *customCacheStatement) execDelete(args []driver.Value) (driver.Result, error) {
-	table := s.queryInfo.Delete.Table
-
-	// if query is like "DELETE FROM table WHERE unique = ?"
-	var deleteByUnique bool
-	if len(s.queryInfo.Delete.Conditions) == 1 {
-		condition := s.queryInfo.Delete.Conditions[0]
-		column := tableSchema[table].Columns[condition.Column]
-		deleteByUnique = (column.IsPrimary || column.IsUnique) && condition.Operator == domains.CachePlanOperator_EQ
-	}
-	if !deleteByUnique {
-		// we should purge all cache
-		for _, cache := range cacheByTable[table] {
-			cache.cache.Purge()
-		}
-		return s.inner.Exec(args)
-	}
-
-	uniqueValue := args[s.queryInfo.Delete.Conditions[0].Placeholder.Index]
-
-	for _, cache := range cacheByTable[table] {
-		if cache.uniqueOnly {
-			// query like "SELECT * FROM table WHERE pk = ?"
-			// we should forget the cache
-			cache.cache.Forget(cacheKey([]driver.Value{uniqueValue}))
-		} else {
-			cache.cache.Purge()
-		}
-	}
-
-	return s.inner.Exec(args)
+	handleDeleteQuery(*s.queryInfo.Delete, args)
+	nvargs := valueToNamedValue(args)
+	return s.inner.(driver.StmtExecContext).ExecContext(context.Background(), nvargs)
 }
 
 func (c *cacheConn) ExecContext(ctx context.Context, rawQuery string, nvargs []driver.NamedValue) (driver.Result, error) {
@@ -217,110 +89,37 @@ func (c *cacheConn) ExecContext(ctx context.Context, rawQuery string, nvargs []d
 
 	switch queryInfo.Type {
 	case domains.CachePlanQueryType_INSERT:
-		return c.execInsert(ctx, queryInfo, nvargs, inner)
+		return c.execInsert(ctx, rawQuery, queryInfo, nvargs, inner)
 	case domains.CachePlanQueryType_UPDATE:
-		return c.execUpdate(ctx, queryInfo, nvargs, inner)
+		return c.execUpdate(ctx, rawQuery, queryInfo, nvargs, inner)
 	case domains.CachePlanQueryType_DELETE:
-		return c.execDelete(ctx, queryInfo, nvargs, inner)
+		return c.execDelete(ctx, rawQuery, queryInfo, nvargs, inner)
 	}
 
 	return inner.ExecContext(ctx, rawQuery, nvargs)
 }
 
-func (c *cacheConn) execInsert(ctx context.Context, queryInfo domains.CachePlanQuery, nvargs []driver.NamedValue, inner driver.ExecerContext) (driver.Result, error) {
+func (c *cacheConn) execInsert(ctx context.Context, rawQuery string, queryInfo domains.CachePlanQuery, nvargs []driver.NamedValue, inner driver.ExecerContext) (driver.Result, error) {
 	args := make([]driver.Value, 0, len(nvargs))
 	for _, nv := range nvargs {
 		args = append(args, nv.Value)
 	}
 
-	execInsert(queryInfo, args)
+	handleInsertQuery(queryInfo.Query, *queryInfo.Insert, args)
 
-	return inner.ExecContext(ctx, queryInfo.Query, nvargs)
+	return inner.ExecContext(ctx, rawQuery, nvargs)
 }
 
-func usedBySelectQuery(selectTarget []string, updateTarget []domains.CachePlanUpdateTarget) bool {
-	for _, target := range updateTarget {
-		inSelectTarget := slices.ContainsFunc(selectTarget, func(selectTarget string) bool {
-			return selectTarget == target.Column
-		})
-		if inSelectTarget {
-			return true
-		}
-	}
-	return false
+func (c *cacheConn) execUpdate(ctx context.Context, rawQuery string, queryInfo domains.CachePlanQuery, nvargs []driver.NamedValue, inner driver.ExecerContext) (driver.Result, error) {
+	args := namedToValue(nvargs)
+	handleUpdateQuery(*queryInfo.Update, args)
+	return inner.ExecContext(ctx, rawQuery, nvargs)
 }
 
-func (c *cacheConn) execUpdate(ctx context.Context, queryInfo domains.CachePlanQuery, args []driver.NamedValue, inner driver.ExecerContext) (driver.Result, error) {
-	table := queryInfo.Update.Table
-
-	// if query is like "UPDATE table SET ... WHERE pk = ?"
-	var updateByUnique bool
-	if len(queryInfo.Update.Conditions) == 1 {
-		condition := queryInfo.Update.Conditions[0]
-		column := tableSchema[table].Columns[condition.Column]
-		updateByUnique = (column.IsPrimary || column.IsUnique) && condition.Operator == domains.CachePlanOperator_EQ
-	}
-	if !updateByUnique {
-		for _, cache := range cacheByTable[table] {
-			if !usedBySelectQuery(cache.info.Targets, queryInfo.Update.Targets) {
-				// no need to purge because the cache does not contain the updated column
-				continue
-			}
-			// we should purge all cache
-			cache.cache.Purge()
-		}
-		return inner.ExecContext(ctx, queryInfo.Query, args)
-	}
-
-	uniqueValue := args[queryInfo.Update.Conditions[0].Placeholder.Index]
-
-	for _, cache := range cacheByTable[table] {
-		if cache.uniqueOnly && usedBySelectQuery(cache.info.Targets, queryInfo.Update.Targets) {
-			// we should forget the cache
-			cache.cache.Forget(cacheKey([]driver.Value{uniqueValue.Value}))
-		} else {
-			if !usedBySelectQuery(cache.info.Targets, queryInfo.Update.Targets) {
-				// no need to purge because the cache does not contain the updated column
-				continue
-			}
-			cache.cache.Purge()
-		}
-	}
-
-	return inner.ExecContext(ctx, queryInfo.Query, args)
-}
-
-func (c *cacheConn) execDelete(ctx context.Context, queryInfo domains.CachePlanQuery, args []driver.NamedValue, inner driver.ExecerContext) (driver.Result, error) {
-	table := queryInfo.Delete.Table
-
-	// if query is like "DELETE FROM table WHERE unique = ?"
-	var deleteByUnique bool
-	if len(queryInfo.Delete.Conditions) == 1 {
-		condition := queryInfo.Delete.Conditions[0]
-		column := tableSchema[table].Columns[condition.Column]
-		deleteByUnique = (column.IsPrimary || column.IsUnique) && condition.Operator == domains.CachePlanOperator_EQ
-	}
-	if !deleteByUnique {
-		// we should purge all cache
-		for _, cache := range cacheByTable[table] {
-			cache.cache.Purge()
-		}
-		return inner.ExecContext(ctx, queryInfo.Query, args)
-	}
-
-	uniqueValue := args[queryInfo.Delete.Conditions[0].Placeholder.Index]
-
-	for _, cache := range cacheByTable[table] {
-		if cache.uniqueOnly {
-			// query like "SELECT * FROM table WHERE pk = ?"
-			// we should forget the cache
-			cache.cache.Forget(cacheKey([]driver.Value{uniqueValue.Value}))
-		} else {
-			cache.cache.Purge()
-		}
-	}
-
-	return inner.ExecContext(ctx, queryInfo.Query, args)
+func (c *cacheConn) execDelete(ctx context.Context, rawQuery string, queryInfo domains.CachePlanQuery, nvargs []driver.NamedValue, inner driver.ExecerContext) (driver.Result, error) {
+	args := namedToValue(nvargs)
+	handleDeleteQuery(*queryInfo.Delete, args)
+	return inner.ExecContext(ctx, rawQuery, nvargs)
 }
 
 func (s *customCacheStatement) Query(args []driver.Value) (driver.Rows, error) {
@@ -356,7 +155,7 @@ func (s *customCacheStatement) inQuery(args []driver.Value) (driver.Rows, error)
 		}
 	}
 	if cache == nil {
-		return s.inner.Query(args)
+		return s.inner.(driver.StmtQueryContext).QueryContext(context.Background(), valueToNamedValue(args))
 	}
 
 	allRows := make([]*cacheRows, 0, len(condValues))
@@ -388,8 +187,6 @@ func (c *cacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []
 
 	queryInfo, ok := queryMap[normalizedQuery]
 	if !ok {
-		return inner.QueryContext(ctx, rawQuery, nvargs)
-	} else if strings.Contains(normalizedQuery, "FOR UPDATE") {
 		return inner.QueryContext(ctx, rawQuery, nvargs)
 	}
 	if queryInfo.Type != domains.CachePlanQueryType_SELECT || !queryInfo.Select.Cache {
@@ -456,52 +253,140 @@ func (c *cacheConn) inQuery(ctx context.Context, query string, args []driver.Nam
 	return mergeCachedRows(allRows), nil
 }
 
-func cacheName(query string) string {
-	return query
+func handleInsertQuery(query string, queryInfo domains.CachePlanInsertQuery, insertValues []driver.Value) {
+	table := queryInfo.Table
+	insertArgs, _ := normalizer.NormalizeArgs(query)
+
+	rows := slices.Chunk(insertValues, len(queryInfo.Columns))
+
+	for _, cache := range cacheByTable[table] {
+		if cache.uniqueOnly {
+			// no need to purge
+			continue
+		}
+
+		cacheConditions := cache.info.Conditions
+		isComplexQuery := len(cacheConditions) != 1 || len(insertArgs.ExtraArgs) > 0 || cacheConditions[0].Operator != domains.CachePlanOperator_EQ
+		if isComplexQuery {
+			cache.cache.Purge()
+			continue
+		}
+
+		cacheCondition := cacheConditions[0]
+		insertColumnIdx := slices.Index(queryInfo.Columns, cacheCondition.Column)
+		if insertColumnIdx >= 0 {
+			// insert query: "INSERT INTO table (col1, col2, ...) VALUES (?, ?, ...), (?, ?, ...), ..."
+			// select query: "SELECT * FROM table WHERE col1 = ?"
+			// forget the cache
+			for row := range rows {
+				cache.cache.Forget(cacheKey([]driver.Value{row[insertColumnIdx]}))
+			}
+		} else {
+			cache.cache.Purge()
+		}
+	}
 }
 
-func cacheKey(args []driver.Value) string {
-	var b strings.Builder
-	for _, arg := range args {
-		switch v := arg.(type) {
-		case string:
-			b.WriteString(v)
-		case []byte:
-			b.Write(v)
-		default:
-			fmt.Fprintf(&b, "%v", v)
+func handleUpdateQuery(queryInfo domains.CachePlanUpdateQuery, args []driver.Value) {
+	// TODO: support composite primary key and other unique key
+	table := queryInfo.Table
+	updateConditions := queryInfo.Conditions
+
+	// if query is NOT "UPDATE `table` SET ... WHERE `unique_col` = ?"
+	if !isSingleUniqueCondition(updateConditions, table) {
+		for _, cache := range cacheByTable[table] {
+			if !usedBySelectQuery(cache.info.Targets, queryInfo.Targets) {
+				// no need to purge because the cache does not contain the updated column
+				continue
+			}
+			cache.cache.Purge()
 		}
-		// delimiter
-		b.WriteByte(0)
+		return
 	}
-	return b.String()
+
+	updateCondition := updateConditions[0]
+	uniqueValue := args[updateCondition.Placeholder.Index]
+
+	for _, cache := range cacheByTable[table] {
+		if !usedBySelectQuery(cache.info.Targets, queryInfo.Targets) {
+			// no need to purge because the cache does not contain the updated column
+			continue
+		}
+
+		cacheConditions := cache.info.Conditions
+		if isSingleUniqueCondition(cacheConditions, table) && cacheConditions[0].Column == updateCondition.Column {
+			// forget only the updated row
+			cache.cache.Forget(cacheKey([]driver.Value{uniqueValue}))
+		} else {
+			cache.cache.Purge()
+		}
+	}
 }
 
-func replaceFn(ctx context.Context, key string) (*cacheRows, error) {
-	var res *cacheRows
+func handleDeleteQuery(queryInfo domains.CachePlanDeleteQuery, args []driver.Value) {
+	table := queryInfo.Table
 
-	queryerCtx, ok := ctx.Value(queryerCtxKey{}).(driver.QueryerContext)
-	if ok {
-		query := ctx.Value(queryKey{}).(string)
-		nvargs := ctx.Value(namedValueArgsKey{}).([]driver.NamedValue)
-		rows, err := queryerCtx.QueryContext(ctx, query, nvargs)
-		if err != nil {
-			return nil, err
+	// if query is like "DELETE FROM table WHERE unique = ?"
+	var deleteByUnique bool
+	if len(queryInfo.Conditions) == 1 {
+		condition := queryInfo.Conditions[0]
+		column := tableSchema[table].Columns[condition.Column]
+		deleteByUnique = (column.IsPrimary || column.IsUnique) && condition.Operator == domains.CachePlanOperator_EQ
+	}
+	if !deleteByUnique {
+		// we should purge all cache
+		for _, cache := range cacheByTable[table] {
+			cache.cache.Purge()
 		}
-		res = newCacheRows(rows)
-	} else {
-		stmt := ctx.Value(stmtKey{}).(*customCacheStatement)
-		args := ctx.Value(argsKey{}).([]driver.Value)
-		rows, err := stmt.inner.Query(args)
-		if err != nil {
-			return nil, err
-		}
-		res = newCacheRows(rows)
+		return
 	}
 
-	if err := res.createCache(); err != nil {
-		return nil, err
-	}
+	uniqueValue := args[queryInfo.Conditions[0].Placeholder.Index]
 
-	return res.Clone(), nil
+	for _, cache := range cacheByTable[table] {
+		if cache.uniqueOnly {
+			// query like "SELECT * FROM table WHERE pk = ?"
+			// we should forget the cache
+			cache.cache.Forget(cacheKey([]driver.Value{uniqueValue}))
+		} else {
+			cache.cache.Purge()
+		}
+	}
+}
+
+func usedBySelectQuery(selectTarget []string, updateTarget []domains.CachePlanUpdateTarget) bool {
+	for _, target := range updateTarget {
+		inSelectTarget := slices.ContainsFunc(selectTarget, func(selectTarget string) bool {
+			return selectTarget == target.Column
+		})
+		if inSelectTarget {
+			return true
+		}
+	}
+	return false
+}
+
+func isSingleUniqueCondition(conditions []domains.CachePlanCondition, table string) bool {
+	if len(conditions) != 1 {
+		return false
+	}
+	condition := conditions[0]
+	column := tableSchema[table].Columns[condition.Column]
+	return (column.IsPrimary || column.IsUnique) && condition.Operator == domains.CachePlanOperator_EQ
+}
+
+func valueToNamedValue(args []driver.Value) []driver.NamedValue {
+	nvargs := make([]driver.NamedValue, len(args))
+	for i, arg := range args {
+		nvargs[i] = driver.NamedValue{Ordinal: i + 1, Value: arg}
+	}
+	return nvargs
+}
+
+func namedToValue(nvargs []driver.NamedValue) []driver.Value {
+	args := make([]driver.Value, len(nvargs))
+	for i, nv := range nvargs {
+		args[i] = nv.Value
+	}
+	return args
 }

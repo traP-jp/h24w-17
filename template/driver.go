@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"fmt"
 	"io"
 	"log"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -43,31 +43,25 @@ func init() {
 
 	for _, query := range plan.Queries {
 		queryMap[query.Query] = *query
-		if query.Type != domains.CachePlanQueryType_SELECT {
+		if query.Type != domains.CachePlanQueryType_SELECT || !query.Select.Cache {
 			continue
 		}
 
-		if query.Select.Cache {
-			conditions := query.Select.Conditions
-			if len(conditions) == 1 {
-				condition := conditions[0]
-				column := tableSchema[query.Select.Table].Columns[condition.Column]
-				if (column.IsPrimary || column.IsUnique) && condition.Operator == domains.CachePlanOperator_EQ {
-					caches[query.Query] = cacheWithInfo{
-						query:      query.Query,
-						info:       *query.Select,
-						cache:      sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
-						uniqueOnly: true,
-					}
-					continue
-				}
-			}
+		conditions := query.Select.Conditions
+		if isSingleUniqueCondition(conditions, query.Select.Table) {
 			caches[query.Query] = cacheWithInfo{
 				query:      query.Query,
 				info:       *query.Select,
 				cache:      sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
-				uniqueOnly: false,
+				uniqueOnly: true,
 			}
+			continue
+		}
+		caches[query.Query] = cacheWithInfo{
+			query:      query.Query,
+			info:       *query.Select,
+			cache:      sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
+			uniqueOnly: false,
 		}
 
 		// TODO: if query is like "SELECT * FROM WHERE pk IN (?, ?, ...)", generate cache with query "SELECT * FROM table WHERE pk = ?"
@@ -115,12 +109,11 @@ func (c *cacheConn) Prepare(rawQuery string) (driver.Stmt, error) {
 
 	queryInfo, ok := queryMap[normalizedQuery]
 	if !ok {
+		// unknown (insert, update, delete) query
 		if !strings.HasPrefix(strings.ToUpper(normalizedQuery), "SELECT") {
 			log.Println("unknown query:", normalizedQuery)
 			PurgeAllCaches()
 		}
-		return c.inner.Prepare(rawQuery)
-	} else if strings.Contains(normalizedQuery, "FOR UPDATE") {
 		return c.inner.Prepare(rawQuery)
 	}
 
@@ -166,30 +159,105 @@ func (c *cacheConn) Ping(ctx context.Context) error {
 var _ driver.Rows = &cacheRows{}
 
 type cacheRows struct {
-	inner   driver.Rows
 	cached  bool
 	columns []string
 	rows    sliceRows
-	limit   int
-
-	mu sync.Mutex
 }
 
-func (r *cacheRows) Clone() *cacheRows {
+func newCacheRows(inner driver.Rows) (*cacheRows, error) {
+	r := new(cacheRows)
+
+	err := r.cacheInnerRows(inner)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+func (r *cacheRows) clone() *cacheRows {
 	if !r.cached {
 		panic("cannot clone uncached rows")
 	}
 	return &cacheRows{
-		inner:   r.inner,
 		cached:  r.cached,
 		columns: r.columns,
 		rows:    r.rows.clone(),
-		limit:   r.limit,
 	}
 }
 
-func newCacheRows(inner driver.Rows) *cacheRows {
-	return &cacheRows{inner: inner}
+func (r *cacheRows) Columns() []string {
+	if !r.cached {
+		panic("cannot get columns of uncached rows")
+	}
+	return r.columns
+}
+
+func (r *cacheRows) Close() error {
+	r.rows.reset()
+	return nil
+}
+
+func (r *cacheRows) Next(dest []driver.Value) error {
+	if !r.cached {
+		return fmt.Errorf("cannot get next row of uncached rows")
+	}
+	return r.rows.next(dest)
+}
+
+func mergeCachedRows(rows []*cacheRows) *cacheRows {
+	if len(rows) == 0 {
+		return nil
+	}
+	if len(rows) == 1 {
+		return rows[0]
+	}
+
+	mergedSlice := sliceRows{}
+	for _, r := range rows {
+		mergedSlice.concat(r.rows)
+	}
+
+	return &cacheRows{
+		cached:  true,
+		columns: rows[0].columns,
+		rows:    mergedSlice,
+	}
+}
+
+func (r *cacheRows) cacheInnerRows(inner driver.Rows) error {
+	columns := inner.Columns()
+	r.columns = columns
+	dest := make([]driver.Value, len(columns))
+
+	for {
+		err := inner.Next(dest)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+
+		cachedRow := make(row, len(dest))
+		for i := 0; i < len(dest); i++ {
+			switch v := dest[i].(type) {
+			case int64, uint64, float64, string, bool, time.Time, nil: // no need to copy
+				cachedRow[i] = v
+			case []byte: // copy to prevent mutation
+				data := make([]byte, len(v))
+				copy(data, v)
+				cachedRow[i] = data
+			default:
+				// TODO: handle other types
+				// Should we mark this row as uncacheable?
+			}
+		}
+		r.rows.append(cachedRow)
+	}
+
+	r.cached = true
+
+	return nil
 }
 
 type row = []driver.Value
@@ -209,110 +277,21 @@ func (r *sliceRows) append(row ...row) {
 	r.rows = append(r.rows, row...)
 }
 
+func (r *sliceRows) concat(rows sliceRows) {
+	r.rows = append(r.rows, rows.rows...)
+}
+
 func (r *sliceRows) reset() {
 	r.idx = 0
 }
 
-func (r *sliceRows) Next(dest []driver.Value, limit int) error {
+func (r *sliceRows) next(dest []driver.Value) error {
 	if r.idx >= len(r.rows) {
-		r.reset()
-		return io.EOF
-	}
-	if limit > 0 && r.idx >= limit {
 		r.reset()
 		return io.EOF
 	}
 	row := r.rows[r.idx]
 	r.idx++
 	copy(dest, row)
-	return nil
-}
-
-func (r *cacheRows) Columns() []string {
-	if r.cached {
-		return r.columns
-	}
-	columns := r.inner.Columns()
-	r.columns = make([]string, len(columns))
-	copy(r.columns, columns)
-	return columns
-}
-
-func (r *cacheRows) Close() error {
-	if r.cached {
-		r.rows.reset()
-		return nil
-	}
-	return r.inner.Close()
-}
-
-func (r *cacheRows) Next(dest []driver.Value) error {
-	if r.cached {
-		return r.rows.Next(dest, r.limit)
-	}
-
-	err := r.inner.Next(dest)
-	if err != nil {
-		if err == io.EOF {
-			r.cached = true
-			return err
-		}
-		return err
-	}
-
-	cachedRow := make(row, len(dest))
-	for i := 0; i < len(dest); i++ {
-		switch v := dest[i].(type) {
-		case int64, uint64, float64, string, bool, time.Time, nil: // no need to copy
-			cachedRow[i] = v
-		case []byte: // copy to prevent mutation
-			data := make([]byte, len(v))
-			copy(data, v)
-			cachedRow[i] = data
-		default:
-			// TODO: handle other types
-			// Should we mark this row as uncacheable?
-		}
-	}
-	r.rows.append(cachedRow)
-
-	return nil
-}
-
-func mergeCachedRows(rows []*cacheRows) *cacheRows {
-	if len(rows) == 0 {
-		return nil
-	}
-	if len(rows) == 1 {
-		return rows[0]
-	}
-
-	mergedSlice := sliceRows{}
-	for _, r := range rows {
-		mergedSlice.append(r.rows.rows...)
-	}
-
-	return &cacheRows{
-		cached:  true,
-		columns: rows[0].columns,
-		rows:    mergedSlice,
-	}
-}
-
-func (r *cacheRows) createCache() error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	columns := r.Columns()
-	dest := make([]driver.Value, len(columns))
-	for {
-		err := r.Next(dest)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-	}
-	r.Close()
 	return nil
 }
