@@ -10,6 +10,7 @@ import (
 type Generator struct {
 	driverTmpl *template.Template
 	stmtTmpl   *template.Template
+	cacheTmpl  *template.Template
 	data       data
 }
 
@@ -23,7 +24,8 @@ func NewGenerator(cachePlanRaw string, tableSchemaRaw string) *Generator {
 	return &Generator{
 		driverTmpl: template.Must(template.ParseFiles("template/driver.tmpl")),
 		stmtTmpl:   template.Must(template.ParseFiles("template/stmt.tmpl")),
-		data:       data{CachePlanRaw: escapeGoString(cachePlanRaw), TableSchemaRaw: escapeGoString(tableSchemaRaw)},
+		cacheTmpl:  template.Must(template.ParseFiles("template/cache.tmpl")),
+		data:       data{CachePlanRaw: toEscapedGoStringLiteral(cachePlanRaw), TableSchemaRaw: toEscapedGoStringLiteral(tableSchemaRaw)},
 	}
 }
 
@@ -38,6 +40,12 @@ func (g *Generator) Generate(destDir string) {
 	if err != nil {
 		panic(err)
 	}
+	defer stmt.Close()
+	cache, err := os.Create(path.Join(destDir, "cache.go"))
+	if err != nil {
+		panic(err)
+	}
+	defer cache.Close()
 
 	err = g.driverTmpl.Execute(driver, g.data)
 	if err != nil {
@@ -47,9 +55,13 @@ func (g *Generator) Generate(destDir string) {
 	if err != nil {
 		panic(err)
 	}
+	err = g.cacheTmpl.Execute(cache, g.data)
+	if err != nil {
+		panic(err)
+	}
 }
 
-func escapeGoString(s string) string {
+func toEscapedGoStringLiteral(s string) string {
 	split := strings.Split(s, "`")
 	var b strings.Builder
 	b.WriteByte('`')
