@@ -1,0 +1,16 @@
+queries:
+  - query: SELECT * FROM `users` WHERE `id` = ?;
+    type: select
+    table: users
+    cache: true
+    targets:
+      - id
+      - name
+      - age
+      - group_id
+      - created_at
+    conditions:
+      - column: id
+        operator: eq
+        placeholder:
+          index: 0

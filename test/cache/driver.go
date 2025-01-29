@@ -1,4 +1,4 @@
-package template
+package cache
 
 import (
 	"context"
@@ -20,10 +20,33 @@ var queryMap = make(map[string]domains.CachePlanQuery)
 
 var tableSchema = make(map[string]domains.TableSchema)
 
-// TODO: generate
-const cachePlanRaw = ``
+const cachePlanRaw = `queries:
+  - query: SELECT * FROM ` + "`" + `users` + "`" + ` WHERE ` + "`" + `id` + "`" + ` = ?;
+    type: select
+    table: users
+    cache: true
+    targets:
+      - id
+      - name
+      - age
+      - group_id
+      - created_at
+    conditions:
+      - column: id
+        operator: eq
+        placeholder:
+          index: 0
+`
 
-const schemaRaw = ``
+const schemaRaw = `CREATE TABLE ` + "`" + `users` + "`" + ` (
+    ` + "`" + `id` + "`" + ` INT NOT NULL AUTO_INCREMENT,
+    ` + "`" + `name` + "`" + ` VARCHAR(255) NOT NULL,
+    ` + "`" + `age` + "`" + ` INT NOT NULL,
+    ` + "`" + `group_id` + "`" + ` INT,
+    ` + "`" + `created_at` + "`" + ` DATETIME NOT NULL,
+    PRIMARY KEY (` + "`" + `id` + "`" + `)
+);
+`
 
 func init() {
 	sql.Register("mysql+cache", CacheDriver{})

@@ -7,20 +7,19 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	mysqldriver "github.com/go-sql-driver/mysql"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 )
 
 var mysqlContainer *mysql.MySQLContainer
 
-func InitialSetupDB(m *testing.M) {
+func init() {
 	ctx := context.Background()
 
 	container, err := mysql.Run(ctx, "mysql:8", mysql.WithUsername("root"), mysql.WithPassword("password"))
 	if err != nil {
 		panic(err)
 	}
-	defer container.Terminate(ctx)
 
 	conn := container.MustConnectionString(ctx)
 	db, err := sql.Open("mysql", conn)
@@ -31,47 +30,77 @@ func InitialSetupDB(m *testing.M) {
 	db.Close()
 
 	mysqlContainer = container
-	m.Run()
 }
 
 func SetupMysqlDB(t *testing.T, driver string) *sql.DB {
 	t.Helper()
 
 	ctx := context.Background()
-
-	dbName := randomDBName()
-	if err := createDatabase(dbName, driver); err != nil {
-		t.Fatal(err)
-	}
 	connection := mysqlContainer.MustConnectionString(ctx, "parseTime=true")
 	db, err := sql.Open(driver, connection)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("USE " + dbName); err != nil {
+
+	dbName := randomDBName()
+	if err := createDatabase(db, dbName); err != nil {
 		t.Fatal(err)
 	}
 
 	return db
 }
 
-func createDatabase(name string, driver string) error {
-	connection := mysqlContainer.MustConnectionString(context.Background(), "multiStatements=true")
-	db, err := sql.Open(driver, connection)
+func SetUpIsucDB(t *testing.T, setup func(db *sql.DB) error, opts ...func(cfg *mysqldriver.Config) *mysqldriver.Config) *sql.DB {
+	t.Helper()
+
+	connection := mysqlContainer.MustConnectionString(context.Background(), "parseTime=true", "multiStatements=true")
+	db, err := sql.Open("mysql", connection)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dbName := randomDBName()
+	if err := createDatabase(db, dbName); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("USE " + dbName); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := setup(db); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+
+	cfg, _ := mysqldriver.ParseDSN(connection)
+	cfg.DBName = dbName
+	cfg.ParseTime = true
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	db, err = sql.Open("mysql+cache", cfg.FormatDSN())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return db
+}
+
+func WithInterpolateParams() func(cfg *mysqldriver.Config) *mysqldriver.Config {
+	return func(cfg *mysqldriver.Config) *mysqldriver.Config {
+		cfg.InterpolateParams = true
+		return cfg
+	}
+}
+
+func createDatabase(db *sql.DB, name string) error {
+	_, err := db.Exec("CREATE DATABASE " + name)
 	if err != nil {
 		return err
 	}
-	defer db.Close()
-
-	_, err = db.Exec("CREATE DATABASE " + name)
-	if err != nil {
-		return err
-	}
-	if _, err := db.Exec("USE " + name); err != nil {
-		return err
-	}
-
-	return nil
+	_, err = db.Exec("USE " + name)
+	return err
 }
 
 func randomDBName() string {

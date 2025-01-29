@@ -41,15 +41,17 @@ func init() {
 	}
 
 	for _, query := range plan.Queries {
-		queryMap[query.Query] = *query
+		normalized := normalizer.NormalizeQuery(query.Query)
+		query.Query = normalized // make sure to use normalized query
+		queryMap[normalized] = *query
 		if query.Type != domains.CachePlanQueryType_SELECT || !query.Select.Cache {
 			continue
 		}
 
 		conditions := query.Select.Conditions
 		if isSingleUniqueCondition(conditions, query.Select.Table) {
-			caches[query.Query] = cacheWithInfo{
-				query:      query.Query,
+			caches[normalized] = cacheWithInfo{
+				query:      normalized,
 				info:       *query.Select,
 				cache:      sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
 				uniqueOnly: true,
