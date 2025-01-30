@@ -17,6 +17,7 @@ type User struct {
 }
 
 func AssertUser(t *testing.T, expected, actual User) {
+	t.Helper()
 	assert.Equal(t, expected.ID, actual.ID, "ID")
 	assert.Equal(t, expected.Name, actual.Name, "Name")
 	assert.Equal(t, expected.Age, actual.Age, "Age")

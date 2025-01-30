@@ -36,6 +36,25 @@ const cachePlanRaw = `queries:
         operator: eq
         placeholder:
           index: 0
+  - query: UPDATE ` + "`" + `users` + "`" + ` SET ` + "`" + `name` + "`" + ` = ? WHERE ` + "`" + `id` + "`" + ` = ?;
+    type: update
+    table: users
+    targets:
+      - column: name
+        placeholder:
+          index: 0
+    conditions:
+      - column: id
+        operator: eq
+        placeholder:
+          index: 1
+  - query: INSERT INTO ` + "`" + `users` + "`" + ` (` + "`" + `name` + "`" + `, ` + "`" + `age` + "`" + `, ` + "`" + `created_at` + "`" + `) VALUES (?, ?, ?);
+    type: insert
+    table: users
+    columns:
+      - name
+      - age
+      - created_at
 `
 
 const schemaRaw = `CREATE TABLE ` + "`" + `users` + "`" + ` (
