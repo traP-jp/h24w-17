@@ -25,6 +25,14 @@ func AssertUser(t *testing.T, expected, actual User) {
 	assert.WithinDuration(t, expected.CreatedAt, actual.CreatedAt, 1*time.Second, "CreatedAt")
 }
 
+func AssertUsers(t *testing.T, expected, actual []User) {
+	t.Helper()
+	assert.Len(t, actual, len(expected))
+	for i := range expected {
+		AssertUser(t, expected[i], actual[i])
+	}
+}
+
 var InitialData = []User{
 	{
 		ID:        1,

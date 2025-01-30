@@ -1,6 +1,7 @@
 package test
 
 import (
+	"database/sql"
 	"testing"
 	"time"
 
@@ -114,6 +115,79 @@ func TestSelectAfterInsert(t *testing.T) {
 	AssertUser(t, InitialData[0], user)
 
 	stats := cache.ExportCacheStats()[normalizer.NormalizeQuery("SELECT * FROM `users` WHERE `id` = ?")]
+	assert.Equal(t, 1, stats.Hits)
+	assert.Equal(t, 1, stats.Misses)
+}
+
+func TestSelectIn(t *testing.T) {
+	cache.ResetCache()
+	db := NewDB(t)
+
+	var users []User
+	err := db.Select(&users, "SELECT * FROM `users` WHERE `id` IN (?, ?)", 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	AssertUser(t, InitialData[0], users[0])
+	AssertUser(t, InitialData[1], users[1])
+
+	// cache hit
+	err = db.Select(&users, "SELECT * FROM `users` WHERE `id` IN (?, ?)", 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	AssertUser(t, InitialData[0], users[0])
+	AssertUser(t, InitialData[1], users[1])
+
+	// the IN query is separately cached
+	stats := cache.ExportCacheStats()[normalizer.NormalizeQuery("SELECT * FROM `users` WHERE `id` = ?")]
+	assert.Equal(t, 2, stats.Hits)
+	assert.Equal(t, 2, stats.Misses)
+}
+
+func TestSelectUsersByGroupID(t *testing.T) {
+	cache.ResetCache()
+	db := NewDB(t)
+
+	var users []User
+	err := db.Select(&users, "SELECT * FROM `users` WHERE `group_id` = ?", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	group1Users := make([]User, 0)
+	for _, user := range InitialData {
+		if user.GroupID.Valid && user.GroupID.V == 1 {
+			group1Users = append(group1Users, user)
+		}
+	}
+	AssertUsers(t, group1Users, users)
+
+	newUser := User{
+		Name:      "new",
+		Age:       10,
+		GroupID:   sql.Null[int]{Valid: true, V: 2},
+		CreatedAt: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+	_, err = db.Exec(
+		"INSERT INTO `users` (`name`, `age`, `group_id`, `created_at`) VALUES (?, ?, ?, ?)",
+		newUser.Name, newUser.Age, newUser.GroupID.V, newUser.CreatedAt,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// cache hit because users with group_id=1 is not updated
+	err = db.Select(&users, "SELECT * FROM `users` WHERE `group_id` = ?", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	AssertUsers(t, group1Users, users)
+
+	stats := cache.ExportCacheStats()[normalizer.NormalizeQuery("SELECT * FROM `users` WHERE `group_id` = ?")]
 	assert.Equal(t, 1, stats.Hits)
 	assert.Equal(t, 1, stats.Misses)
 }
