@@ -7,10 +7,6 @@ import (
 	"github.com/traP-jp/isuc/testutil"
 )
 
-func TestMain(m *testing.M) {
-	testutil.InitialSetupDB(m)
-}
-
 func TestExtract(t *testing.T) {
 	db := testutil.SetupMysqlDB(t, "mysql+analyzer")
 	defer db.Close()

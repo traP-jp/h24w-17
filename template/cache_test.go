@@ -10,10 +10,6 @@ import (
 	"github.com/traP-jp/isuc/testutil"
 )
 
-func TestMain(m *testing.M) {
-	testutil.InitialSetupDB(m)
-}
-
 func TestCacheRows(t *testing.T) {
 	db := testutil.SetupMysqlDB(t, "mysql")
 	defer db.Close()

@@ -42,15 +42,17 @@ func init() {
 	}
 
 	for _, query := range plan.Queries {
-		queryMap[query.Query] = *query
+		normalized := normalizer.NormalizeQuery(query.Query)
+		query.Query = normalized // make sure to use normalized query
+		queryMap[normalized] = *query
 		if query.Type != domains.CachePlanQueryType_SELECT || !query.Select.Cache {
 			continue
 		}
 
 		conditions := query.Select.Conditions
 		if isSingleUniqueCondition(conditions, query.Select.Table) {
-			caches[query.Query] = cacheWithInfo{
-				query:      query.Query,
+			caches[normalized] = cacheWithInfo{
+				query:      normalized,
 				info:       *query.Select,
 				cache:      sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
 				uniqueOnly: true,
@@ -101,7 +103,9 @@ var (
 )
 
 type cacheConn struct {
-	inner driver.Conn
+	inner   driver.Conn
+	tx      bool
+	cleanUp []func()
 }
 
 func (c *cacheConn) Prepare(rawQuery string) (driver.Stmt, error) {
@@ -139,14 +143,29 @@ func (c *cacheConn) Close() error {
 }
 
 func (c *cacheConn) Begin() (driver.Tx, error) {
-	return c.BeginTx(context.Background(), driver.TxOptions{})
+	inner, err := c.BeginTx(context.Background(), driver.TxOptions{})
+	if err != nil {
+		return nil, err
+	}
+	c.tx = true
+	return &cacheTx{conn: c, inner: inner}, nil
 }
 
 func (c *cacheConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
 	if i, ok := c.inner.(driver.ConnBeginTx); ok {
-		return i.BeginTx(ctx, opts)
+		inner, err := i.BeginTx(ctx, opts)
+		if err != nil {
+			return nil, err
+		}
+		c.tx = true
+		return &cacheTx{conn: c, inner: inner}, nil
 	}
-	return c.inner.Begin()
+	inner, err := c.inner.Begin()
+	if err != nil {
+		return nil, err
+	}
+	c.tx = true
+	return &cacheTx{conn: c, inner: inner}, nil
 }
 
 func (c *cacheConn) Ping(ctx context.Context) error {
@@ -154,6 +173,31 @@ func (c *cacheConn) Ping(ctx context.Context) error {
 		return i.Ping(ctx)
 	}
 	return nil
+}
+
+var _ driver.Tx = &cacheTx{}
+
+type cacheTx struct {
+	conn  *cacheConn
+	inner driver.Tx
+}
+
+func (t *cacheTx) Commit() error {
+	t.conn.tx = false
+	defer func() {
+		for _, c := range t.conn.cleanUp {
+			c()
+		}
+		t.conn.cleanUp = t.conn.cleanUp[:0]
+	}()
+	return t.inner.Commit()
+}
+
+func (t *cacheTx) Rollback() error {
+	t.conn.tx = false
+	// no need to clean up
+	t.conn.cleanUp = nil
+	return t.inner.Rollback()
 }
 
 var _ driver.Rows = &cacheRows{}

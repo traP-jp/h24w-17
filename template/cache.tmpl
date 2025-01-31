@@ -33,6 +33,27 @@ func ExportMetrics() string {
 	return res
 }
 
+type CacheStats struct {
+	Query    string
+	HitRatio float64
+	Hits     int
+	Misses   int
+}
+
+func ExportCacheStats() map[string]CacheStats {
+	res := make(map[string]CacheStats)
+	for query, cache := range caches {
+		stats := cache.cache.Stats()
+		res[query] = CacheStats{
+			Query:    query,
+			HitRatio: stats.HitRatio(),
+			Hits:     int(stats.Hits),
+			Misses:   int(stats.Misses),
+		}
+	}
+	return res
+}
+
 func PurgeAllCaches() {
 	for _, cache := range caches {
 		cache.cache.Purge()
