@@ -7,23 +7,28 @@
 
 ## How to use
 
-1. Extract the queries [statically](#static-extractor) or [dynamically](#dynamic-extractor)
-2. [Get your table schema](#getting-table-schemas)
-3. [Generate cache plan](#generate-cache-plan)
-4. [Generate the driver](#generate-the-driver)
-5. [Switch the driver](#switch-the-driver)
+1. [Install isuc CLI](#install-isuc-cli)
+2. Extract the queries [statically](#static-extractor) or [dynamically](#dynamic-extractor)
+3. [Get your table schema](#getting-table-schemas)
+4. [Generate cache plan](#generate-cache-plan)
+5. [Generate the driver](#generate-the-driver)
+6. [Switch the driver](#switch-the-driver)
+
+### Install isuc CLI
+
+```sh
+go install github.com/traP-jp/isuc/cli/isuc@latest
+```
 
 ### Extractor
 
 #### Static Extractor
 
-<!-- TODO: rewrite for production usage (not need to clone repository) -->
-
 - `--out` represents the destination file of the extracted queries.
   - Set to `extracted.sql` by default
 
 ```sh
-go run cli/*.go extract --out extracted.sql /path/to/your/codebase/dir
+isuc extract --out extracted.sql /path/to/your/codebase/dir
 ```
 
 #### Dynamic Extractor
@@ -63,10 +68,8 @@ mysql -u "$USER" -p"$PASSWORD" -h "$HOST" -N -e "SHOW TABLES FROM $DATABASE" | w
 
 ### Generate Cache Plan
 
-<!-- TODO: rewrite for production usage (not need to clone repository) -->
-
 ```sh
-go run cli/*.go analyze --sql extracted.sql --schema schema.sql --out isuc.yaml
+isuc analyze --sql extracted.sql --schema schema.sql --out isuc.yaml
 ```
 
 - `--sql` represents extracted queries (via the static/dynamic extractor)
@@ -78,10 +81,8 @@ go run cli/*.go analyze --sql extracted.sql --schema schema.sql --out isuc.yaml
 
 ### Generate the driver
 
-<!-- TODO: rewrite for production usage (not need to clone repository) -->
-
 ```sh
-go run cli/*.go generate --plan isuc.yaml --schema schema.sql <dist>
+isuc generate --plan isuc.yaml --schema schema.sql <dist>
 ```
 
 - `--plan` represents generated cache plan
@@ -100,7 +101,6 @@ Rewrite the section of connecting to a database.
 ```
 
 ## Appendix
-
 
 ### Cache Plan Format
 
