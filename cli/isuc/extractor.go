@@ -10,6 +10,7 @@ import (
 
 var extractCmd = &cobra.Command{
 	Use:       "extract",
+	Short:     "Extract SQL queries from the codebase",
 	Long:      "Statistically analyze the codebase and extract SQL queries",
 	Args:      cobra.ExactArgs(1),
 	ValidArgs: []string{"path"},
