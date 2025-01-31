@@ -10,6 +10,7 @@ import (
 
 var generateCmd = &cobra.Command{
 	Use:       "generate",
+	Short:     "Generate a driver from the cache plan and table schema",
 	Long:      "Generate a driver from the cache plan and table schema",
 	Args:      cobra.ExactArgs(1),
 	ValidArgs: []string{"path"},

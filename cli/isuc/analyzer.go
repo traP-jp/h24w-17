@@ -13,8 +13,9 @@ import (
 )
 
 var analyzeCmd = &cobra.Command{
-	Use:  "analyze",
-	Long: "Analyze the extracted queries and generate a cache plan",
+	Use:   "analyze",
+	Short: "Analyze the extracted queries and generate a cache plan",
+	Long:  "Analyze the extracted queries and generate a cache plan",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		sqlFile := cmd.Flag("sql").Value.String()
 		schemasFile := cmd.Flag("schema").Value.String()
