@@ -191,3 +191,75 @@ func TestSelectUsersByGroupID(t *testing.T) {
 	assert.Equal(t, 1, stats.Hits)
 	assert.Equal(t, 1, stats.Misses)
 }
+
+func TestTransaction(t *testing.T) {
+	cache.ResetCache()
+	db := NewDB(t)
+
+	errCh := make(chan error, 2)
+	afterUpdate := make(chan struct{})
+	beforeCommit := make(chan struct{})
+
+	// transaction
+	go func() {
+		tx, err := db.Beginx()
+		if err != nil {
+			errCh <- err
+			return
+		}
+		defer tx.Rollback()
+
+		_, err = tx.Exec("UPDATE `users` SET `name` = ? WHERE `id` = ?", "updated", 1)
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		close(afterUpdate)
+
+		<-beforeCommit
+
+		err = tx.Commit()
+		errCh <- err
+
+		t.Log("transaction committed")
+	}()
+
+	// select
+	go func() {
+		<-afterUpdate
+
+		var user User
+		err := db.Get(&user, "SELECT * FROM `users` WHERE `id` = ?", 1)
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		// user must not be updated yet because the transaction is not committed
+		AssertUser(t, InitialData[0], user)
+
+		close(beforeCommit)
+
+		errCh <- nil
+
+		t.Log("select completed")
+	}()
+
+	if err := <-errCh; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-errCh; err != nil {
+		t.Fatal(err)
+	}
+
+	// now user must be updated
+	var user User
+	err := db.Get(&user, "SELECT * FROM `users` WHERE `id` = ?", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated := InitialData[0]
+	updated.Name = "updated"
+	AssertUser(t, updated, user)
+}

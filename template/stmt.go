@@ -87,16 +87,27 @@ func (c *cacheConn) ExecContext(ctx context.Context, rawQuery string, nvargs []d
 		return inner.ExecContext(ctx, rawQuery, nvargs)
 	}
 
+	var res driver.Result
+	var err error
 	switch queryInfo.Type {
 	case domains.CachePlanQueryType_INSERT:
-		return c.execInsert(ctx, rawQuery, queryInfo, nvargs, inner)
+		res, err = c.execInsert(ctx, rawQuery, queryInfo, nvargs, inner)
 	case domains.CachePlanQueryType_UPDATE:
-		return c.execUpdate(ctx, rawQuery, queryInfo, nvargs, inner)
+		res, err = c.execUpdate(ctx, rawQuery, queryInfo, nvargs, inner)
 	case domains.CachePlanQueryType_DELETE:
-		return c.execDelete(ctx, rawQuery, queryInfo, nvargs, inner)
+		res, err = c.execDelete(ctx, rawQuery, queryInfo, nvargs, inner)
+	default:
+		res, err = inner.ExecContext(ctx, rawQuery, nvargs)
 	}
 
-	return inner.ExecContext(ctx, rawQuery, nvargs)
+	if !c.tx {
+		for _, cleanUp := range c.cleanUp {
+			cleanUp()
+		}
+		c.cleanUp = nil
+	}
+
+	return res, err
 }
 
 func (c *cacheConn) execInsert(ctx context.Context, rawQuery string, queryInfo domains.CachePlanQuery, nvargs []driver.NamedValue, inner driver.ExecerContext) (driver.Result, error) {
@@ -105,14 +116,18 @@ func (c *cacheConn) execInsert(ctx context.Context, rawQuery string, queryInfo d
 		args = append(args, nv.Value)
 	}
 
-	handleInsertQuery(queryInfo.Query, *queryInfo.Insert, args)
+	cleanUp := handleInsertQuery(queryInfo.Query, *queryInfo.Insert, args)
+	c.cleanUp = append(c.cleanUp, cleanUp...)
 
 	return inner.ExecContext(ctx, rawQuery, nvargs)
 }
 
 func (c *cacheConn) execUpdate(ctx context.Context, rawQuery string, queryInfo domains.CachePlanQuery, nvargs []driver.NamedValue, inner driver.ExecerContext) (driver.Result, error) {
 	args := namedToValue(nvargs)
-	handleUpdateQuery(*queryInfo.Update, args)
+
+	cleanUp := handleUpdateQuery(*queryInfo.Update, args)
+	c.cleanUp = append(c.cleanUp, cleanUp...)
+
 	return inner.ExecContext(ctx, rawQuery, nvargs)
 }
 
@@ -181,6 +196,10 @@ func (c *cacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []
 	inner, ok := c.inner.(driver.QueryerContext)
 	if !ok {
 		return nil, driver.ErrSkip
+	}
+
+	if c.tx {
+		return inner.QueryContext(ctx, rawQuery, nvargs)
 	}
 
 	normalizedQuery := normalizer.NormalizeQuery(rawQuery)
@@ -253,7 +272,7 @@ func (c *cacheConn) inQuery(ctx context.Context, query string, args []driver.Nam
 	return mergeCachedRows(allRows), nil
 }
 
-func handleInsertQuery(query string, queryInfo domains.CachePlanInsertQuery, insertValues []driver.Value) {
+func handleInsertQuery(query string, queryInfo domains.CachePlanInsertQuery, insertValues []driver.Value) (cleanUP []func()) {
 	table := queryInfo.Table
 	insertArgs, _ := normalizer.NormalizeArgs(query)
 
@@ -268,7 +287,7 @@ func handleInsertQuery(query string, queryInfo domains.CachePlanInsertQuery, ins
 		cacheConditions := cache.info.Conditions
 		isComplexQuery := len(cacheConditions) != 1 || len(insertArgs.ExtraArgs) > 0 || cacheConditions[0].Operator != domains.CachePlanOperator_EQ
 		if isComplexQuery {
-			cache.cache.Purge()
+			cleanUP = append(cleanUP, cache.cache.Purge)
 			continue
 		}
 
@@ -279,15 +298,17 @@ func handleInsertQuery(query string, queryInfo domains.CachePlanInsertQuery, ins
 			// select query: "SELECT * FROM table WHERE col1 = ?"
 			// forget the cache
 			for row := range rows {
-				cache.cache.Forget(cacheKey([]driver.Value{row[insertColumnIdx]}))
+				cleanUP = append(cleanUP, func() { cache.cache.Forget(cacheKey([]driver.Value{row[insertColumnIdx]})) })
 			}
 		} else {
-			cache.cache.Purge()
+			cleanUP = append(cleanUP, cache.cache.Purge)
 		}
 	}
+
+	return cleanUP
 }
 
-func handleUpdateQuery(queryInfo domains.CachePlanUpdateQuery, args []driver.Value) {
+func handleUpdateQuery(queryInfo domains.CachePlanUpdateQuery, args []driver.Value) (cleanUp []func()) {
 	// TODO: support composite primary key and other unique key
 	table := queryInfo.Table
 	updateConditions := queryInfo.Conditions
@@ -299,7 +320,7 @@ func handleUpdateQuery(queryInfo domains.CachePlanUpdateQuery, args []driver.Val
 				// no need to purge because the cache does not contain the updated column
 				continue
 			}
-			cache.cache.Purge()
+			cleanUp = append(cleanUp, cache.cache.Purge)
 		}
 		return
 	}
@@ -316,11 +337,13 @@ func handleUpdateQuery(queryInfo domains.CachePlanUpdateQuery, args []driver.Val
 		cacheConditions := cache.info.Conditions
 		if isSingleUniqueCondition(cacheConditions, table) && cacheConditions[0].Column == updateCondition.Column {
 			// forget only the updated row
-			cache.cache.Forget(cacheKey([]driver.Value{uniqueValue}))
+			cleanUp = append(cleanUp, func() { cache.cache.Forget(cacheKey([]driver.Value{uniqueValue})) })
 		} else {
-			cache.cache.Purge()
+			cleanUp = append(cleanUp, cache.cache.Purge)
 		}
 	}
+
+	return cleanUp
 }
 
 func handleDeleteQuery(queryInfo domains.CachePlanDeleteQuery, args []driver.Value) {
