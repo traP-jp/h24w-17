@@ -104,7 +104,7 @@ func (c *cacheConn) ExecContext(ctx context.Context, rawQuery string, nvargs []d
 		for _, cleanUp := range c.cleanUp {
 			cleanUp()
 		}
-		c.cleanUp = nil
+		c.cleanUp = c.cleanUp[:0]
 	}
 
 	return res, err
@@ -133,7 +133,10 @@ func (c *cacheConn) execUpdate(ctx context.Context, rawQuery string, queryInfo d
 
 func (c *cacheConn) execDelete(ctx context.Context, rawQuery string, queryInfo domains.CachePlanQuery, nvargs []driver.NamedValue, inner driver.ExecerContext) (driver.Result, error) {
 	args := namedToValue(nvargs)
-	handleDeleteQuery(*queryInfo.Delete, args)
+
+	cleanUp := handleDeleteQuery(*queryInfo.Delete, args)
+	c.cleanUp = append(c.cleanUp, cleanUp...)
+
 	return inner.ExecContext(ctx, rawQuery, nvargs)
 }
 
@@ -346,7 +349,7 @@ func handleUpdateQuery(queryInfo domains.CachePlanUpdateQuery, args []driver.Val
 	return cleanUp
 }
 
-func handleDeleteQuery(queryInfo domains.CachePlanDeleteQuery, args []driver.Value) {
+func handleDeleteQuery(queryInfo domains.CachePlanDeleteQuery, args []driver.Value) (cleanUp []func()) {
 	table := queryInfo.Table
 
 	// if query is like "DELETE FROM table WHERE unique = ?"
@@ -359,7 +362,7 @@ func handleDeleteQuery(queryInfo domains.CachePlanDeleteQuery, args []driver.Val
 	if !deleteByUnique {
 		// we should purge all cache
 		for _, cache := range cacheByTable[table] {
-			cache.cache.Purge()
+			cleanUp = append(cleanUp, cache.cache.Purge)
 		}
 		return
 	}
@@ -370,11 +373,13 @@ func handleDeleteQuery(queryInfo domains.CachePlanDeleteQuery, args []driver.Val
 		if cache.uniqueOnly {
 			// query like "SELECT * FROM table WHERE pk = ?"
 			// we should forget the cache
-			cache.cache.Forget(cacheKey([]driver.Value{uniqueValue}))
+			cleanUp = append(cleanUp, func() { cache.cache.Forget(cacheKey([]driver.Value{uniqueValue})) })
 		} else {
-			cache.cache.Purge()
+			cleanUp = append(cleanUp, cache.cache.Purge)
 		}
 	}
+
+	return cleanUp
 }
 
 func usedBySelectQuery(selectTarget []string, updateTarget []domains.CachePlanUpdateTarget) bool {

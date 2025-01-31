@@ -187,7 +187,7 @@ func (t *cacheTx) Commit() error {
 		for _, c := range t.conn.cleanUp {
 			c()
 		}
-		t.conn.cleanUp = nil
+		t.conn.cleanUp = t.conn.cleanUp[:0]
 	}()
 	return t.inner.Commit()
 }
