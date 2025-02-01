@@ -9,7 +9,7 @@ import (
 func ResetCache() {
 	for key := range caches {
 		v := caches[key]
-		*v.cache = *sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute)
+		*v.Cache = *sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute)
 		caches[key] = v
 	}
 }

@@ -5,7 +5,40 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/motoki317/sc"
+	"github.com/traP-jp/isuc/domains"
 )
+
+type cacheWithInfo struct {
+	*sc.Cache[string, *cacheRows]
+	query           string
+	info            domains.CachePlanSelectQuery
+	uniqueOnly      bool         // if true, query is like "SELECT * FROM table WHERE pk = ?"
+	lastUpdate      atomic.Int64 // time.Time.UnixNano()
+	lastUpdateByKey syncMap[int64]
+}
+
+func (c *cacheWithInfo) updateTx() {
+	c.lastUpdate.Store(time.Now().UnixNano())
+}
+
+func (c *cacheWithInfo) updateByKeyTx(key string) {
+	c.lastUpdateByKey.Store(key, time.Now().UnixNano())
+}
+
+func (c *cacheWithInfo) isNewerThan(key string, t int64) bool {
+	if c.lastUpdate.Load() > t {
+		return true
+	}
+	if update, ok := c.lastUpdateByKey.Load(key); ok && update > t {
+		return true
+	}
+	return false
+}
 
 type (
 	queryKey          struct{}
@@ -18,7 +51,7 @@ type (
 func ExportMetrics() string {
 	res := ""
 	for query, cache := range caches {
-		stats := cache.cache.Stats()
+		stats := cache.Stats()
 		progress := "["
 		for i := 0; i < 20; i++ {
 			if i < int(stats.HitRatio()*20) {
@@ -43,7 +76,7 @@ type CacheStats struct {
 func ExportCacheStats() map[string]CacheStats {
 	res := make(map[string]CacheStats)
 	for query, cache := range caches {
-		stats := cache.cache.Stats()
+		stats := cache.Stats()
 		res[query] = CacheStats{
 			Query:    query,
 			HitRatio: stats.HitRatio(),
@@ -56,7 +89,7 @@ func ExportCacheStats() map[string]CacheStats {
 
 func PurgeAllCaches() {
 	for _, cache := range caches {
-		cache.cache.Purge()
+		cache.Purge()
 	}
 }
 
@@ -108,4 +141,21 @@ func replaceFn(ctx context.Context, key string) (*cacheRows, error) {
 		return nil, err
 	}
 	return cacheRows.clone(), nil
+}
+
+type syncMap[T any] struct {
+	m sync.Map
+}
+
+func (m *syncMap[T]) Load(key string) (T, bool) {
+	var zero T
+	v, ok := m.m.Load(key)
+	if !ok {
+		return zero, false
+	}
+	return v.(T), true
+}
+
+func (m *syncMap[T]) Store(key string, value T) {
+	m.m.Store(key, value)
 }

@@ -2,6 +2,7 @@ package test
 
 import (
 	"database/sql"
+	"sync"
 	"testing"
 	"time"
 
@@ -200,8 +201,13 @@ func TestTransaction(t *testing.T) {
 	afterUpdate := make(chan struct{})
 	beforeCommit := make(chan struct{})
 
+	var wg sync.WaitGroup
+	wg.Add(2)
+
 	// transaction
 	go func() {
+		defer wg.Done()
+
 		tx, err := db.Beginx()
 		if err != nil {
 			errCh <- err
@@ -227,6 +233,8 @@ func TestTransaction(t *testing.T) {
 
 	// select
 	go func() {
+		defer wg.Done()
+
 		<-afterUpdate
 
 		var user User
@@ -246,11 +254,11 @@ func TestTransaction(t *testing.T) {
 		t.Log("select completed")
 	}()
 
-	if err := <-errCh; err != nil {
-		t.Fatal(err)
-	}
-	if err := <-errCh; err != nil {
-		t.Fatal(err)
+	wg.Wait()
+	for range len(errCh) {
+		if err := <-errCh; err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// now user must be updated
@@ -262,4 +270,110 @@ func TestTransaction(t *testing.T) {
 	updated := InitialData[0]
 	updated.Name = "updated"
 	AssertUser(t, updated, user)
+}
+
+func TestSelectTransaction(t *testing.T) {
+	cache.ResetCache()
+	db := NewDB(t)
+
+	tx := db.MustBegin()
+	defer tx.Rollback()
+
+	var user User
+	err := tx.Get(&user, "SELECT * FROM `users` WHERE `id` = ?", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	AssertUser(t, InitialData[0], user)
+
+	// cache hit
+	err = tx.Get(&user, "SELECT * FROM `users` WHERE `id` = ?", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	AssertUser(t, InitialData[0], user)
+
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	stats := cache.ExportCacheStats()[normalizer.NormalizeQuery("SELECT * FROM `users` WHERE `id` = ?")]
+	assert.Equal(t, 1, stats.Hits)
+	assert.Equal(t, 1, stats.Misses)
+}
+
+func TestFuzzyRead(t *testing.T) {
+	cache.ResetCache()
+	db := NewDB(t)
+
+	errCh := make(chan error, 2)
+	afterFirstQuery := make(chan struct{})
+	afterUpdate := make(chan struct{})
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// transaction 1
+	go func() {
+		defer wg.Done()
+
+		tx := db.MustBegin()
+		defer tx.Rollback()
+
+		var user1 User
+		err := tx.Get(&user1, "SELECT * FROM `users` WHERE `id` = ?", 1)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		AssertUser(t, InitialData[0], user1)
+
+		close(afterFirstQuery)
+
+		<-afterUpdate
+
+		var user2 User
+		err = tx.Get(&user2, "SELECT * FROM `users` WHERE `id` = ?", 1)
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		AssertUser(t, user1, user2)
+
+		errCh <- tx.Commit()
+	}()
+
+	// transaction 2
+	go func() {
+		defer wg.Done()
+
+		tx := db.MustBegin()
+		defer tx.Rollback()
+
+		<-afterFirstQuery
+
+		_, err := tx.Exec("UPDATE `users` SET `name` = ? WHERE `id` = ?", "updated", 1)
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		err = tx.Commit()
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		close(afterUpdate)
+	}()
+
+	wg.Wait()
+	for range len(errCh) {
+		if err := <-errCh; err != nil {
+			t.Fatal(err)
+		}
+	}
 }
