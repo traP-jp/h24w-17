@@ -48,7 +48,7 @@ func (a *analyzer) analyzeQueries(queries []string) (domains.CachePlan, error) {
 		query = normalizer.NormalizeQuery(query)
 		parsed, err := sql_parser.ParseSQL(query)
 		if err != nil {
-			weekParsed, weekErr := sql_parser.ParseSQLWeekly(query)
+			weekParsed, weekErr := sql_parser.ParseSQLWeekly(query, a.schemas)
 			if weekErr != nil {
 				planErr.errors = append(planErr.errors, fmt.Errorf("failed to parse query:\nmain -> %s\nweek -> %s", err, weekErr))
 				continue

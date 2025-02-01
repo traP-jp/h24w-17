@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/traP-jp/isuc/domains"
 )
 
 func TestParseSQLWeekly(t *testing.T) {
@@ -21,7 +22,10 @@ func TestParseSQLWeekly(t *testing.T) {
 		},
 		{
 			query: "UPDATE users SET del_flg = 1 WHERE id % 50 = 0",
-			node:  UpdateStmtNode{Table: TableNode{Name: "users"}},
+			node: UpdateStmtNode{Table: TableNode{Name: "users"}, Sets: UpdateSetsNode{Sets: []UpdateSetNode{
+				{Column: ColumnNode{Name: "del_flg"}, Value: PlaceholderNode{}},
+				{Column: ColumnNode{Name: "id"}, Value: PlaceholderNode{}},
+			}}},
 		},
 		{
 			query: "DELETE FROM livecomments WHERE id = ? AND livestream_id = ? AND (SELECT COUNT(*) FROM (SELECT ? AS text) AS texts INNER JOIN (SELECT CONCAT('%', ?, '%') AS pattern) AS patterns ON texts.text LIKE patterns.pattern) >= 1;",
@@ -30,7 +34,12 @@ func TestParseSQLWeekly(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		node, err := ParseSQLWeekly(test.query)
+		node, err := ParseSQLWeekly(test.query, []domains.TableSchema{
+			{TableName: "users", Columns: map[string]domains.TableSchemaColumn{
+				"id":      {ColumnName: "id"},
+				"del_flg": {ColumnName: "del_flg"},
+			}},
+		})
 		assert.NoError(t, err)
 		assert.Equal(t, test.node, node)
 	}
