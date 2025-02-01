@@ -6,22 +6,14 @@ import (
 	"log"
 	"slices"
 
-	"github.com/motoki317/sc"
 	"github.com/traP-jp/isuc/domains"
 	"github.com/traP-jp/isuc/normalizer"
 )
 
-type cacheWithInfo struct {
-	query      string
-	info       domains.CachePlanSelectQuery
-	uniqueOnly bool // if true, query is like "SELECT * FROM table WHERE pk = ?"
-	cache      *sc.Cache[string, *cacheRows]
-}
-
 // NOTE: no write happens to this map, so it's safe to use in concurrent environment
-var caches = make(map[string]cacheWithInfo)
+var caches = make(map[string]*cacheWithInfo)
 
-var cacheByTable = make(map[string][]cacheWithInfo)
+var cacheByTable = make(map[string][]*cacheWithInfo)
 
 var _ driver.Stmt = &customCacheStatement{}
 
@@ -101,10 +93,19 @@ func (c *cacheConn) ExecContext(ctx context.Context, rawQuery string, nvargs []d
 	}
 
 	if !c.tx {
-		for _, cleanUp := range c.cleanUp {
-			cleanUp()
+		c.cleanUp.do()
+		c.cleanUp.reset()
+	} else {
+		// cleanups are deferred until the transaction is committed
+		// because we need to forget the cache only if the transaction is committed
+
+		// update the cache
+		for _, c := range c.cleanUp.purge {
+			c.updateTx()
 		}
-		c.cleanUp = c.cleanUp[:0]
+		for _, forget := range c.cleanUp.forget {
+			forget.cache.updateByKeyTx(forget.key)
+		}
 	}
 
 	return res, err
@@ -117,7 +118,7 @@ func (c *cacheConn) execInsert(ctx context.Context, rawQuery string, queryInfo d
 	}
 
 	cleanUp := handleInsertQuery(queryInfo.Query, *queryInfo.Insert, args)
-	c.cleanUp = append(c.cleanUp, cleanUp...)
+	c.cleanUp.append(cleanUp)
 
 	return inner.ExecContext(ctx, rawQuery, nvargs)
 }
@@ -126,7 +127,7 @@ func (c *cacheConn) execUpdate(ctx context.Context, rawQuery string, queryInfo d
 	args := namedToValue(nvargs)
 
 	cleanUp := handleUpdateQuery(*queryInfo.Update, args)
-	c.cleanUp = append(c.cleanUp, cleanUp...)
+	c.cleanUp.append(cleanUp)
 
 	return inner.ExecContext(ctx, rawQuery, nvargs)
 }
@@ -135,7 +136,7 @@ func (c *cacheConn) execDelete(ctx context.Context, rawQuery string, queryInfo d
 	args := namedToValue(nvargs)
 
 	cleanUp := handleDeleteQuery(*queryInfo.Delete, args)
-	c.cleanUp = append(c.cleanUp, cleanUp...)
+	c.cleanUp.append(cleanUp)
 
 	return inner.ExecContext(ctx, rawQuery, nvargs)
 }
@@ -150,7 +151,7 @@ func (s *customCacheStatement) Query(args []driver.Value) (driver.Rows, error) {
 		return s.inQuery(args)
 	}
 
-	rows, err := caches[cacheName(s.query)].cache.Get(ctx, cacheKey(args))
+	rows, err := caches[cacheName(s.query)].Get(ctx, cacheKey(args))
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +170,7 @@ func (s *customCacheStatement) inQuery(args []driver.Value) (driver.Rows, error)
 	var cache *cacheWithInfo
 	for _, c := range cacheByTable[table] {
 		if len(c.info.Conditions) == 1 && c.info.Conditions[0].Column == s.queryInfo.Select.Conditions[0].Column && c.info.Conditions[0].Operator == domains.CachePlanOperator_EQ {
-			cache = &c
+			cache = c
 		}
 	}
 	if cache == nil {
@@ -185,7 +186,7 @@ func (s *customCacheStatement) inQuery(args []driver.Value) (driver.Rows, error)
 		}
 		ctx := context.WithValue(context.Background(), stmtKey{}, stmt)
 		ctx = context.WithValue(ctx, argsKey{}, []driver.Value{condValue})
-		rows, err := cache.cache.Get(ctx, cacheKey([]driver.Value{condValue}))
+		rows, err := cache.Get(ctx, cacheKey([]driver.Value{condValue}))
 		if err != nil {
 			return nil, err
 		}
@@ -199,10 +200,6 @@ func (c *cacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []
 	inner, ok := c.inner.(driver.QueryerContext)
 	if !ok {
 		return nil, driver.ErrSkip
-	}
-
-	if c.tx {
-		return inner.QueryContext(ctx, rawQuery, nvargs)
 	}
 
 	normalizedQuery := normalizer.NormalizeQuery(rawQuery)
@@ -226,11 +223,19 @@ func (c *cacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []
 		args[i] = nv.Value
 	}
 
-	cache := caches[queryInfo.Query].cache
+	cache := caches[queryInfo.Query]
+	key := cacheKey(args)
+
+	if c.tx && cache.isNewerThan(key, c.txStart) {
+		// cache is newer than the transaction start time
+		// we should not use the cache
+		return inner.QueryContext(ctx, rawQuery, nvargs)
+	}
+
 	cachectx := context.WithValue(ctx, namedValueArgsKey{}, nvargs)
 	cachectx = context.WithValue(cachectx, queryerCtxKey{}, inner)
 	cachectx = context.WithValue(cachectx, queryKey{}, rawQuery)
-	rows, err := cache.Get(cachectx, cacheKey(args))
+	rows, err := cache.Get(cachectx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +257,7 @@ func (c *cacheConn) inQuery(ctx context.Context, query string, args []driver.Nam
 	var cache *cacheWithInfo
 	for _, c := range cacheByTable[table] {
 		if len(c.info.Conditions) == 1 && c.info.Conditions[0].Column == queryInfo.Select.Conditions[0].Column && c.info.Conditions[0].Operator == domains.CachePlanOperator_EQ {
-			cache = &c
+			cache = c
 		}
 	}
 	if cache == nil {
@@ -265,7 +270,7 @@ func (c *cacheConn) inQuery(ctx context.Context, query string, args []driver.Nam
 		cacheCtx := context.WithValue(ctx, queryKey{}, cache.query)
 		cacheCtx = context.WithValue(cacheCtx, queryerCtxKey{}, inner)
 		cacheCtx = context.WithValue(cacheCtx, namedValueArgsKey{}, nvargs)
-		rows, err := cache.cache.Get(cacheCtx, cacheKey([]driver.Value{condValue.Value}))
+		rows, err := cache.Get(cacheCtx, cacheKey([]driver.Value{condValue.Value}))
 		if err != nil {
 			return nil, err
 		}
@@ -275,7 +280,7 @@ func (c *cacheConn) inQuery(ctx context.Context, query string, args []driver.Nam
 	return mergeCachedRows(allRows), nil
 }
 
-func handleInsertQuery(query string, queryInfo domains.CachePlanInsertQuery, insertValues []driver.Value) (cleanUP []func()) {
+func handleInsertQuery(query string, queryInfo domains.CachePlanInsertQuery, insertValues []driver.Value) (cleanUp cleanUpTask) {
 	table := queryInfo.Table
 	insertArgs, _ := normalizer.NormalizeArgs(query)
 
@@ -290,7 +295,7 @@ func handleInsertQuery(query string, queryInfo domains.CachePlanInsertQuery, ins
 		cacheConditions := cache.info.Conditions
 		isComplexQuery := len(cacheConditions) != 1 || len(insertArgs.ExtraArgs) > 0 || cacheConditions[0].Operator != domains.CachePlanOperator_EQ
 		if isComplexQuery {
-			cleanUP = append(cleanUP, cache.cache.Purge)
+			cleanUp.purge = append(cleanUp.purge, cache)
 			continue
 		}
 
@@ -301,20 +306,22 @@ func handleInsertQuery(query string, queryInfo domains.CachePlanInsertQuery, ins
 			// select query: "SELECT * FROM table WHERE col1 = ?"
 			// forget the cache
 			for row := range rows {
-				cleanUP = append(cleanUP, func() { cache.cache.Forget(cacheKey([]driver.Value{row[insertColumnIdx]})) })
+				cleanUp.forget = append(cleanUp.forget, forgetTask{cache, cacheKey([]driver.Value{row[insertColumnIdx]})})
 			}
 		} else {
-			cleanUP = append(cleanUP, cache.cache.Purge)
+			cleanUp.purge = append(cleanUp.purge, cache)
 		}
 	}
 
-	return cleanUP
+	return cleanUp
 }
 
-func handleUpdateQuery(queryInfo domains.CachePlanUpdateQuery, args []driver.Value) (cleanUp []func()) {
+func handleUpdateQuery(queryInfo domains.CachePlanUpdateQuery, args []driver.Value) cleanUpTask {
 	// TODO: support composite primary key and other unique key
 	table := queryInfo.Table
 	updateConditions := queryInfo.Conditions
+
+	var cleanUp cleanUpTask
 
 	// if query is NOT "UPDATE `table` SET ... WHERE `unique_col` = ?"
 	if !isSingleUniqueCondition(updateConditions, table) {
@@ -323,9 +330,9 @@ func handleUpdateQuery(queryInfo domains.CachePlanUpdateQuery, args []driver.Val
 				// no need to purge because the cache does not contain the updated column
 				continue
 			}
-			cleanUp = append(cleanUp, cache.cache.Purge)
+			cleanUp.purge = append(cleanUp.purge, cache)
 		}
-		return
+		return cleanUp
 	}
 
 	updateCondition := updateConditions[0]
@@ -340,17 +347,19 @@ func handleUpdateQuery(queryInfo domains.CachePlanUpdateQuery, args []driver.Val
 		cacheConditions := cache.info.Conditions
 		if isSingleUniqueCondition(cacheConditions, table) && cacheConditions[0].Column == updateCondition.Column {
 			// forget only the updated row
-			cleanUp = append(cleanUp, func() { cache.cache.Forget(cacheKey([]driver.Value{uniqueValue})) })
+			cleanUp.forget = append(cleanUp.forget, forgetTask{cache, cacheKey([]driver.Value{uniqueValue})})
 		} else {
-			cleanUp = append(cleanUp, cache.cache.Purge)
+			cleanUp.purge = append(cleanUp.purge, cache)
 		}
 	}
 
 	return cleanUp
 }
 
-func handleDeleteQuery(queryInfo domains.CachePlanDeleteQuery, args []driver.Value) (cleanUp []func()) {
+func handleDeleteQuery(queryInfo domains.CachePlanDeleteQuery, args []driver.Value) cleanUpTask {
 	table := queryInfo.Table
+
+	var cleanUp cleanUpTask
 
 	// if query is like "DELETE FROM table WHERE unique = ?"
 	var deleteByUnique bool
@@ -361,10 +370,8 @@ func handleDeleteQuery(queryInfo domains.CachePlanDeleteQuery, args []driver.Val
 	}
 	if !deleteByUnique {
 		// we should purge all cache
-		for _, cache := range cacheByTable[table] {
-			cleanUp = append(cleanUp, cache.cache.Purge)
-		}
-		return
+		cleanUp.purge = append(cleanUp.purge, cacheByTable[table]...)
+		return cleanUp
 	}
 
 	uniqueValue := args[queryInfo.Conditions[0].Placeholder.Index]
@@ -373,9 +380,9 @@ func handleDeleteQuery(queryInfo domains.CachePlanDeleteQuery, args []driver.Val
 		if cache.uniqueOnly {
 			// query like "SELECT * FROM table WHERE pk = ?"
 			// we should forget the cache
-			cleanUp = append(cleanUp, func() { cache.cache.Forget(cacheKey([]driver.Value{uniqueValue})) })
+			cleanUp.forget = append(cleanUp.forget, forgetTask{cache, cacheKey([]driver.Value{uniqueValue})})
 		} else {
-			cleanUp = append(cleanUp, cache.cache.Purge)
+			cleanUp.purge = append(cleanUp.purge, cache)
 		}
 	}
 
@@ -417,4 +424,33 @@ func namedToValue(nvargs []driver.NamedValue) []driver.Value {
 		args[i] = nv.Value
 	}
 	return args
+}
+
+type forgetTask struct {
+	cache *cacheWithInfo
+	key   string
+}
+
+type cleanUpTask struct {
+	purge  []*cacheWithInfo
+	forget []forgetTask
+}
+
+func (c *cleanUpTask) reset() {
+	c.purge = c.purge[:0]
+	c.forget = c.forget[:0]
+}
+
+func (c *cleanUpTask) do() {
+	for _, cache := range c.purge {
+		cache.Purge()
+	}
+	for _, forget := range c.forget {
+		forget.cache.Forget(forget.key)
+	}
+}
+
+func (c *cleanUpTask) append(tasks cleanUpTask) {
+	c.purge = append(c.purge, tasks.purge...)
+	c.forget = append(c.forget, tasks.forget...)
 }
