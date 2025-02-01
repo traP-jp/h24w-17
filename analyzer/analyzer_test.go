@@ -264,7 +264,15 @@ func TestAnalyzeQueries(t *testing.T) {
 							Type:  domains.CachePlanQueryType_UPDATE,
 						},
 						Update: &domains.CachePlanUpdateQuery{
-							Table:      "users",
+							Table: "users",
+							Targets: []domains.CachePlanUpdateTarget{
+								{Column: "account_name", Placeholder: domains.CachePlanPlaceholder{Index: 0}},
+								{Column: "authority", Placeholder: domains.CachePlanPlaceholder{Index: 1}},
+								{Column: "created_at", Placeholder: domains.CachePlanPlaceholder{Index: 2}},
+								{Column: "del_flg", Placeholder: domains.CachePlanPlaceholder{Index: 3}},
+								{Column: "id", Placeholder: domains.CachePlanPlaceholder{Index: 4}},
+								{Column: "passhash", Placeholder: domains.CachePlanPlaceholder{Index: 5}},
+							},
 							Conditions: []domains.CachePlanCondition{},
 						},
 					},
