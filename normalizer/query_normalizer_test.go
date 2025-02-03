@@ -24,7 +24,7 @@ func TestNormalizeQuery(t *testing.T) {
 			expected: "SELECT id from table;",
 		},
 		{
-			query:    "INSERT INTO table (name, col) VALUES (?, ?);",
+			query:    "INSERT INTO table(name, col) VALUES (?, ?);",
 			expected: "INSERT INTO table (name, col) VALUES (?);",
 		},
 		{
