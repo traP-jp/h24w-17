@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	h24w17 "github.com/traP-jp/isuc"
+	"github.com/traP-jp/isuc/template"
 )
 
 var generateCmd = &cobra.Command{
@@ -34,7 +34,7 @@ var generateCmd = &cobra.Command{
 			return fmt.Errorf("error reading schema file: %v", err)
 		}
 
-		g := h24w17.NewGenerator(planContent, schemaContent)
+		g := template.NewGenerator(planContent, schemaContent)
 		g.Generate(distPath)
 
 		return nil

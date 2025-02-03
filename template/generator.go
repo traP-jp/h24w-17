@@ -1,4 +1,4 @@
-package h24w17
+package template
 
 import (
 	"embed"
@@ -21,14 +21,14 @@ type data struct {
 	TableSchemaRaw string
 }
 
-//go:embed template/*.tmpl
+//go:embed *.tmpl
 var templates embed.FS
 
 func NewGenerator(cachePlanRaw string, tableSchemaRaw string) *Generator {
 	return &Generator{
-		driverTmpl: template.Must(template.ParseFS(templates, "template/driver.tmpl")),
-		stmtTmpl:   template.Must(template.ParseFS(templates, "template/stmt.tmpl")),
-		cacheTmpl:  template.Must(template.ParseFS(templates, "template/cache.tmpl")),
+		driverTmpl: template.Must(template.ParseFS(templates, "driver.tmpl")),
+		stmtTmpl:   template.Must(template.ParseFS(templates, "stmt.tmpl")),
+		cacheTmpl:  template.Must(template.ParseFS(templates, "cache.tmpl")),
 		data:       data{CachePlanRaw: toEscapedGoStringLiteral(cachePlanRaw), TableSchemaRaw: toEscapedGoStringLiteral(tableSchemaRaw)},
 	}
 }
