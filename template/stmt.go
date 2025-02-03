@@ -151,7 +151,9 @@ func (s *customCacheStatement) Query(args []driver.Value) (driver.Rows, error) {
 		return s.inQuery(args)
 	}
 
-	rows, err := caches[cacheName(s.query)].Get(ctx, cacheKey(args))
+	cache := caches[cacheName(s.query)]
+	ctx = context.WithValue(ctx, cacheWithInfoKey{}, cache)
+	rows, err := cache.Get(ctx, cacheKey(args))
 	if err != nil {
 		return nil, err
 	}
@@ -186,6 +188,7 @@ func (s *customCacheStatement) inQuery(args []driver.Value) (driver.Rows, error)
 		}
 		ctx := context.WithValue(context.Background(), stmtKey{}, stmt)
 		ctx = context.WithValue(ctx, argsKey{}, []driver.Value{condValue})
+		ctx = context.WithValue(ctx, cacheWithInfoKey{}, cache)
 		rows, err := cache.Get(ctx, cacheKey([]driver.Value{condValue}))
 		if err != nil {
 			return nil, err
@@ -232,10 +235,11 @@ func (c *cacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []
 		return inner.QueryContext(ctx, rawQuery, nvargs)
 	}
 
-	cachectx := context.WithValue(ctx, namedValueArgsKey{}, nvargs)
-	cachectx = context.WithValue(cachectx, queryerCtxKey{}, inner)
-	cachectx = context.WithValue(cachectx, queryKey{}, rawQuery)
-	rows, err := cache.Get(cachectx, key)
+	cacheCtx := context.WithValue(ctx, namedValueArgsKey{}, nvargs)
+	cacheCtx = context.WithValue(cacheCtx, queryerCtxKey{}, inner)
+	cacheCtx = context.WithValue(cacheCtx, queryKey{}, rawQuery)
+	cacheCtx = context.WithValue(cacheCtx, cacheWithInfoKey{}, cache)
+	rows, err := cache.Get(cacheCtx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -270,6 +274,7 @@ func (c *cacheConn) inQuery(ctx context.Context, query string, args []driver.Nam
 		cacheCtx := context.WithValue(ctx, queryKey{}, cache.query)
 		cacheCtx = context.WithValue(cacheCtx, queryerCtxKey{}, inner)
 		cacheCtx = context.WithValue(cacheCtx, namedValueArgsKey{}, nvargs)
+		cacheCtx = context.WithValue(cacheCtx, cacheWithInfoKey{}, cache)
 		rows, err := cache.Get(cacheCtx, cacheKey([]driver.Value{condValue.Value}))
 		if err != nil {
 			return nil, err

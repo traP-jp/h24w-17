@@ -49,7 +49,7 @@ func init() {
 		}
 
 		conditions := query.Select.Conditions
-		if isSingleUniqueCondition(conditions, query.Select.Table) {
+			if isSingleUniqueCondition(conditions, query.Select.Table) {
 			caches[normalized] = &cacheWithInfo{
 				Cache:      sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
 				query:      normalized,
