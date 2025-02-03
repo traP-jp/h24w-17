@@ -40,6 +40,10 @@ func (c *cacheWithInfo) isNewerThan(key string, t int64) bool {
 	return false
 }
 
+func (c *cacheWithInfo) RecordReplaceTime(time time.Duration) {
+	c.replaceTime.Add(int64(time))
+}
+
 type (
 	queryKey          struct{}
 	stmtKey           struct{}
@@ -49,8 +53,15 @@ type (
 )
 
 func ExportMetrics() string {
+	cacheList := make([]*cacheWithInfo, 0, len(caches))
+	for _, cache := range caches {
+		cacheList = append(cacheList, cache)
+	}
+	sort.SliceStable(cacheList, func(i, j int) bool {
+		return cacheList[i].replaceTime.Load() < cacheList[j].replaceTime.Load()
+	})
 	res := ""
-	for query, cache := range caches {
+	for _, cache := range cacheList {
 		stats := cache.Stats()
 		progress := "["
 		for i := 0; i < 20; i++ {
@@ -61,8 +72,8 @@ func ExportMetrics() string {
 			}
 		}
 		progress += "]"
-		statsStr := fmt.Sprintf("%s (%.2f%% - %d/%d) (%d replace) (size %d)", progress, stats.HitRatio()*100, stats.Hits, stats.Misses+stats.Hits, stats.Replacements, stats.Size)
-		res += fmt.Sprintf("query: \"%s\"\n%s\n\n", query, statsStr)
+		statsStr := fmt.Sprintf("%s (%.2f%% - %d/%d)\n%d replace (%.2fms) / size = %d", progress, stats.HitRatio()*100, stats.Hits, stats.Misses+stats.Hits, stats.Replacements, float64(cache.replaceTime.Load())/1000, stats.Size)
+		res += fmt.Sprintf("query: \"%s\"\n%s\n\n", cache.query, statsStr)
 	}
 	return res
 }
