@@ -2,6 +2,8 @@ package analyzer
 
 import (
 	"fmt"
+	"slices"
+	"sort"
 
 	"github.com/traP-jp/isuc/domains"
 	"github.com/traP-jp/isuc/sql_parser"
@@ -105,6 +107,7 @@ func (q *queryAnalyzer) analyzeSelectValues(values sql_parser.SelectValuesNode, 
 			}
 		}
 	}
+	slices.Sort(sort.StringSlice(result))
 	return result
 }
 
