@@ -75,7 +75,8 @@ func ExportMetrics() string {
 			}
 		}
 		progress += "]"
-		statsStr := fmt.Sprintf("%s (%.2f%% - %d/%d)\n%d replace (%.2fms) / size = %d", progress, stats.HitRatio()*100, stats.Hits, stats.Misses+stats.Hits, stats.Replacements, float64(cache.replaceTime.Load())/1000, stats.Size)
+		replaceTime := time.Duration(cache.replaceTime.Load()).String()
+		statsStr := fmt.Sprintf("%s (%.2f%% - %d/%d)\n%d replace (%s) / size = %d", progress, stats.HitRatio()*100, stats.Hits, stats.Misses+stats.Hits, stats.Replacements, replaceTime, stats.Size)
 		res += fmt.Sprintf("query: \"%s\"\n%s\n\n", cache.query, statsStr)
 	}
 	return res
@@ -130,7 +131,13 @@ func cacheKey(args []driver.Value) string {
 }
 
 func replaceFn(ctx context.Context, key string) (*cacheRows, error) {
+	cache := ctx.Value(cacheWithInfoKey{}).(*cacheWithInfo)
 	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		cache.RecordReplaceTime(elapsed)
+	}()
+
 	queryerCtx, ok := ctx.Value(queryerCtxKey{}).(driver.QueryerContext)
 	if ok {
 		query := ctx.Value(queryKey{}).(string)
@@ -156,13 +163,7 @@ func replaceFn(ctx context.Context, key string) (*cacheRows, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := cacheRows.clone()
-
-	if cache, ok := ctx.Value(cacheWithInfoKey{}).(*cacheWithInfo); ok {
-		elapsed := time.Since(start)
-		cache.RecordReplaceTime(elapsed)
-	}
-	return result, nil
+	return cacheRows.clone(), nil
 }
 
 type syncMap[T any] struct {
