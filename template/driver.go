@@ -22,7 +22,6 @@ var tableSchema = make(map[string]domains.TableSchema)
 
 // TODO: generate
 const cachePlanRaw = ``
-
 const schemaRaw = ``
 
 func init() {
