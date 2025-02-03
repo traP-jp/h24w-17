@@ -60,6 +60,7 @@ func ExportMetrics() string {
 				progress += "-"
 			}
 		}
+		progress += "]"
 		statsStr := fmt.Sprintf("%s (%.2f%% - %d/%d) (%d replace) (size %d)", progress, stats.HitRatio()*100, stats.Hits, stats.Misses+stats.Hits, stats.Replacements, stats.Size)
 		res += fmt.Sprintf("query: \"%s\"\n%s\n\n", query, statsStr)
 	}
