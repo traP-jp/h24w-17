@@ -20,6 +20,7 @@ type cacheWithInfo struct {
 	uniqueOnly      bool         // if true, query is like "SELECT * FROM table WHERE pk = ?"
 	lastUpdate      atomic.Int64 // time.Time.UnixNano()
 	lastUpdateByKey syncMap[int64]
+	replaceTime     atomic.Int64
 }
 
 func (c *cacheWithInfo) updateTx() {
@@ -50,6 +51,7 @@ type (
 	argsKey           struct{}
 	queryerCtxKey     struct{}
 	namedValueArgsKey struct{}
+	cacheWithInfoKey  struct{}
 )
 
 func ExportMetrics() string {
