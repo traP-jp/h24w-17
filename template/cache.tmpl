@@ -41,7 +41,7 @@ func (c *cacheWithInfo) isNewerThan(key string, t int64) bool {
 }
 
 func (c *cacheWithInfo) RecordReplaceTime(time time.Duration) {
-	c.replaceTime.Add(int64(time))
+	c.replaceTime.Add(time.Nanoseconds())
 }
 
 type (

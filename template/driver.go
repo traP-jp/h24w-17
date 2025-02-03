@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -53,20 +52,18 @@ func init() {
 		conditions := query.Select.Conditions
 		if isSingleUniqueCondition(conditions, query.Select.Table) {
 			caches[normalized] = &cacheWithInfo{
-				Cache:       sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
-				query:       normalized,
-				info:        *query.Select,
-				uniqueOnly:  true,
-				replaceTime: atomic.Int64{},
+				Cache:      sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
+				query:      normalized,
+				info:       *query.Select,
+				uniqueOnly: true,
 			}
 			continue
 		}
 		caches[query.Query] = &cacheWithInfo{
-			Cache:       sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
-			query:       query.Query,
-			info:        *query.Select,
-			uniqueOnly:  false,
-			replaceTime: atomic.Int64{},
+			Cache:      sc.NewMust(replaceFn, 10*time.Minute, 10*time.Minute),
+			query:      query.Query,
+			info:       *query.Select,
+			uniqueOnly: false,
 		}
 
 		// TODO: if query is like "SELECT * FROM WHERE pk IN (?, ?, ...)", generate cache with query "SELECT * FROM table WHERE pk = ?"
