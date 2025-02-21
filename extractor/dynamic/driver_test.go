@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/traP-jp/isuc/testutil"
+	dbtest "github.com/traP-jp/isuc/testutil/db"
 )
 
 func TestExtract(t *testing.T) {
-	db := testutil.SetupMysqlDB(t, "mysql+analyzer")
+	db := dbtest.SetupMysqlDB(t, "mysql+analyzer")
 	defer db.Close()
 
 	deleteAllQueries()

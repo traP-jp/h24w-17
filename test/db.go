@@ -7,13 +7,13 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/traP-jp/isuc/test/cache"
-	"github.com/traP-jp/isuc/testutil"
+	dbtest "github.com/traP-jp/isuc/testutil/db"
 )
 
 //go:embed testdata/0_schema.sql
 var tableSchema string
 
-func NewDB(t *testing.T) *sqlx.DB {
+func NewDB(t *testing.T, opts ...dbtest.Option) *sqlx.DB {
 	setup := func(db *sql.DB) error {
 		_, err := db.Exec(tableSchema)
 		if err != nil {
@@ -43,7 +43,7 @@ func NewDB(t *testing.T) *sqlx.DB {
 		return nil
 	}
 
-	db := testutil.SetUpIsucDB(t, setup, testutil.WithInterpolateParams())
+	db := dbtest.SetUpIsucDB(t, setup, opts...)
 
 	return sqlx.NewDb(db, "mysql+cache")
 }
