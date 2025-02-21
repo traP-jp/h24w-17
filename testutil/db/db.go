@@ -50,7 +50,9 @@ func SetupMysqlDB(t *testing.T, driver string) *sql.DB {
 	return db
 }
 
-func SetUpIsucDB(t *testing.T, setup func(db *sql.DB) error, opts ...func(cfg *mysqldriver.Config) *mysqldriver.Config) *sql.DB {
+type Option func(cfg *mysqldriver.Config) *mysqldriver.Config
+
+func SetUpIsucDB(t *testing.T, setup func(db *sql.DB) error, opts ...Option) *sql.DB {
 	t.Helper()
 
 	connection := mysqlContainer.MustConnectionString(context.Background(), "parseTime=true", "multiStatements=true")

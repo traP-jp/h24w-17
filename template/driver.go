@@ -90,7 +90,7 @@ func (d CacheDriver) Open(dsn string) (driver.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &cacheConn{inner: conn}, nil
+	return &cacheConn{inner: conn, config: cfg}, nil
 }
 
 var (
@@ -103,6 +103,7 @@ var (
 
 type cacheConn struct {
 	inner   driver.Conn
+	config  *mysql.Config
 	tx      bool
 	txStart int64 // time.Time.UnixNano()
 	cleanUp cleanUpTask
@@ -187,15 +188,7 @@ type cacheTx struct {
 
 func (t *cacheTx) Commit() error {
 	t.conn.tx = false
-	defer func() {
-		for _, c := range t.conn.cleanUp.purge {
-			c.Purge()
-		}
-		for _, forget := range t.conn.cleanUp.forget {
-			forget.cache.Forget(forget.key)
-		}
-		t.conn.cleanUp.reset()
-	}()
+	defer t.conn.cleanUp.do()
 	return t.inner.Commit()
 }
 

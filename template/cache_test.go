@@ -7,11 +7,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/traP-jp/isuc/testutil"
+	dbtest "github.com/traP-jp/isuc/testutil/db"
 )
 
 func TestCacheRows(t *testing.T) {
-	db := testutil.SetupMysqlDB(t, "mysql")
+	db := dbtest.SetupMysqlDB(t, "mysql")
 	defer db.Close()
 
 	schema, err := os.ReadFile("testdata/schema.sql")

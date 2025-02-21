@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -20,6 +21,7 @@ type cacheWithInfo struct {
 	uniqueOnly      bool         // if true, query is like "SELECT * FROM table WHERE pk = ?"
 	lastUpdate      atomic.Int64 // time.Time.UnixNano()
 	lastUpdateByKey syncMap[int64]
+	replaceTime     atomic.Int64
 }
 
 func (c *cacheWithInfo) updateTx() {
@@ -40,17 +42,29 @@ func (c *cacheWithInfo) isNewerThan(key string, t int64) bool {
 	return false
 }
 
+func (c *cacheWithInfo) RecordReplaceTime(time time.Duration) {
+	c.replaceTime.Add(time.Nanoseconds())
+}
+
 type (
 	queryKey          struct{}
 	stmtKey           struct{}
 	argsKey           struct{}
 	queryerCtxKey     struct{}
 	namedValueArgsKey struct{}
+	cacheWithInfoKey  struct{}
 )
 
 func ExportMetrics() string {
+	cacheList := make([]*cacheWithInfo, 0, len(caches))
+	for _, cache := range caches {
+		cacheList = append(cacheList, cache)
+	}
+	sort.SliceStable(cacheList, func(i, j int) bool {
+		return cacheList[i].replaceTime.Load() < cacheList[j].replaceTime.Load()
+	})
 	res := ""
-	for query, cache := range caches {
+	for _, cache := range cacheList {
 		stats := cache.Stats()
 		progress := "["
 		for i := 0; i < 20; i++ {
@@ -60,8 +74,10 @@ func ExportMetrics() string {
 				progress += "-"
 			}
 		}
-		statsStr := fmt.Sprintf("%s (%.2f%% - %d/%d) (%d replace) (size %d)", progress, stats.HitRatio()*100, stats.Hits, stats.Misses+stats.Hits, stats.Replacements, stats.Size)
-		res += fmt.Sprintf("query: \"%s\"\n%s\n\n", query, statsStr)
+		progress += "]"
+		replaceTime := time.Duration(cache.replaceTime.Load()).String()
+		statsStr := fmt.Sprintf("%s (%.2f%% - %d/%d)\n%d replace (%s) / size = %d", progress, stats.HitRatio()*100, stats.Hits, stats.Misses+stats.Hits, stats.Replacements, replaceTime, stats.Size)
+		res += fmt.Sprintf("query: \"%s\"\n%s\n\n", cache.query, statsStr)
 	}
 	return res
 }
@@ -115,6 +131,13 @@ func cacheKey(args []driver.Value) string {
 }
 
 func replaceFn(ctx context.Context, key string) (*cacheRows, error) {
+	cache := ctx.Value(cacheWithInfoKey{}).(*cacheWithInfo)
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		cache.RecordReplaceTime(elapsed)
+	}()
+
 	queryerCtx, ok := ctx.Value(queryerCtxKey{}).(driver.QueryerContext)
 	if ok {
 		query := ctx.Value(queryKey{}).(string)
