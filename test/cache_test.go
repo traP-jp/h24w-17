@@ -6,15 +6,29 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/traP-jp/isuc/normalizer"
 	"github.com/traP-jp/isuc/test/cache"
+	dbtest "github.com/traP-jp/isuc/testutil/db"
 )
 
-func TestSimpleQuery(t *testing.T) {
-	cache.ResetCache()
+func dbs(t *testing.T) map[string]*sqlx.DB {
 	db := NewDB(t)
+	withInterpolateParamsDB := NewDB(t, dbtest.WithInterpolateParams())
+	return map[string]*sqlx.DB{"interpolateParams=false": db, "interpolateParams=true": withInterpolateParamsDB}
+}
 
+func TestSimpleQuery(t *testing.T) {
+	for name, db := range dbs(t) {
+		cache.Reset()
+		t.Run(name, func(t *testing.T) {
+			testSimpleQuery(t, db)
+		})
+	}
+}
+
+func testSimpleQuery(t *testing.T, db *sqlx.DB) {
 	var user User
 	err := db.Get(&user, "SELECT * FROM `users` WHERE `id` = ?", 1)
 	if err != nil {
@@ -29,9 +43,15 @@ func TestSimpleQuery(t *testing.T) {
 }
 
 func TestSimpleQueryCache(t *testing.T) {
-	cache.ResetCache()
-	db := NewDB(t)
+	for name, db := range dbs(t) {
+		cache.Reset()
+		t.Run(name, func(t *testing.T) {
+			testSimpleQueryCache(t, db)
+		})
+	}
+}
 
+func testSimpleQueryCache(t *testing.T, db *sqlx.DB) {
 	var user User
 	err := db.Get(&user, "SELECT * FROM `users` WHERE `id` = ?", 1)
 	if err != nil {
@@ -54,9 +74,15 @@ func TestSimpleQueryCache(t *testing.T) {
 }
 
 func TestSelectAfterUpdate(t *testing.T) {
-	cache.ResetCache()
-	db := NewDB(t)
+	for name, db := range dbs(t) {
+		cache.Reset()
+		t.Run(name, func(t *testing.T) {
+			testSelectAfterUpdate(t, db)
+		})
+	}
+}
 
+func testSelectAfterUpdate(t *testing.T, db *sqlx.DB) {
 	var user User
 	err := db.Get(&user, "SELECT * FROM `users` WHERE `id` = ?", 1)
 	if err != nil {
@@ -86,9 +112,15 @@ func TestSelectAfterUpdate(t *testing.T) {
 }
 
 func TestSelectAfterInsert(t *testing.T) {
-	cache.ResetCache()
-	db := NewDB(t)
+	for name, db := range dbs(t) {
+		cache.Reset()
+		t.Run(name, func(t *testing.T) {
+			testSelectAfterInsert(t, db)
+		})
+	}
+}
 
+func testSelectAfterInsert(t *testing.T, db *sqlx.DB) {
 	var user User
 	err := db.Get(&user, "SELECT * FROM `users` WHERE `id` = ?", 1)
 	if err != nil {
@@ -121,9 +153,15 @@ func TestSelectAfterInsert(t *testing.T) {
 }
 
 func TestSelectIn(t *testing.T) {
-	cache.ResetCache()
-	db := NewDB(t)
+	for name, db := range dbs(t) {
+		cache.Reset()
+		t.Run(name, func(t *testing.T) {
+			testSelectIn(t, db)
+		})
+	}
+}
 
+func testSelectIn(t *testing.T, db *sqlx.DB) {
 	var users []User
 	err := db.Select(&users, "SELECT * FROM `users` WHERE `id` IN (?, ?)", 1, 2)
 	if err != nil {
@@ -149,9 +187,15 @@ func TestSelectIn(t *testing.T) {
 }
 
 func TestSelectUsersByGroupID(t *testing.T) {
-	cache.ResetCache()
-	db := NewDB(t)
+	for name, db := range dbs(t) {
+		cache.Reset()
+		t.Run(name, func(t *testing.T) {
+			testSelectUsersByGroupID(t, db)
+		})
+	}
+}
 
+func testSelectUsersByGroupID(t *testing.T, db *sqlx.DB) {
 	var users []User
 	err := db.Select(&users, "SELECT * FROM `users` WHERE `group_id` = ?", 1)
 	if err != nil {
@@ -194,9 +238,15 @@ func TestSelectUsersByGroupID(t *testing.T) {
 }
 
 func TestTransaction(t *testing.T) {
-	cache.ResetCache()
-	db := NewDB(t)
+	for name, db := range dbs(t) {
+		cache.Reset()
+		t.Run(name, func(t *testing.T) {
+			testTransaction(t, db)
+		})
+	}
+}
 
+func testTransaction(t *testing.T, db *sqlx.DB) {
 	errCh := make(chan error, 2)
 	afterUpdate := make(chan struct{})
 	beforeCommit := make(chan struct{})
@@ -273,9 +323,15 @@ func TestTransaction(t *testing.T) {
 }
 
 func TestSelectTransaction(t *testing.T) {
-	cache.ResetCache()
-	db := NewDB(t)
+	for name, db := range dbs(t) {
+		cache.Reset()
+		t.Run(name, func(t *testing.T) {
+			testSelectTransaction(t, db)
+		})
+	}
+}
 
+func testSelectTransaction(t *testing.T, db *sqlx.DB) {
 	tx := db.MustBegin()
 	defer tx.Rollback()
 
@@ -305,9 +361,15 @@ func TestSelectTransaction(t *testing.T) {
 }
 
 func TestFuzzyRead(t *testing.T) {
-	cache.ResetCache()
-	db := NewDB(t)
+	for name, db := range dbs(t) {
+		cache.Reset()
+		t.Run(name, func(t *testing.T) {
+			testFuzzyRead(t, db)
+		})
+	}
+}
 
+func testFuzzyRead(t *testing.T, db *sqlx.DB) {
 	errCh := make(chan error, 2)
 	afterFirstQuery := make(chan struct{})
 	afterUpdate := make(chan struct{})

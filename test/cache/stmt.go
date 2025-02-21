@@ -35,31 +35,51 @@ func (s *customCacheStatement) NumInput() int {
 }
 
 func (s *customCacheStatement) Exec(args []driver.Value) (driver.Result, error) {
+	var res driver.Result
+	var err error
 	switch s.queryInfo.Type {
 	case domains.CachePlanQueryType_INSERT:
-		return s.execInsert(args)
+		res, err = s.execInsert(args)
 	case domains.CachePlanQueryType_UPDATE:
-		return s.execUpdate(args)
+		res, err = s.execUpdate(args)
 	case domains.CachePlanQueryType_DELETE:
-		return s.execDelete(args)
+		res, err = s.execDelete(args)
+	default:
+		res, err = s.inner.(driver.StmtExecContext).ExecContext(context.Background(), valueToNamedValue(args))
 	}
 
-	return s.inner.(driver.StmtExecContext).ExecContext(context.Background(), valueToNamedValue(args))
+	if !s.conn.tx {
+		s.conn.cleanUp.do()
+	} else {
+		// cleanups are deferred until the transaction is committed
+		// because we need to forget the cache only if the transaction is committed
+		for _, c := range s.conn.cleanUp.purge {
+			c.updateTx()
+		}
+		for _, forget := range s.conn.cleanUp.forget {
+			forget.cache.updateByKeyTx(forget.key)
+		}
+	}
+
+	return res, err
 }
 
 func (s *customCacheStatement) execInsert(args []driver.Value) (driver.Result, error) {
-	handleInsertQuery(s.query, *s.queryInfo.Insert, args)
+	cleanup := handleInsertQuery(s.query, *s.queryInfo.Insert, args)
+	s.conn.cleanUp.append(cleanup)
 	return s.inner.(driver.StmtExecContext).ExecContext(context.Background(), valueToNamedValue(args))
 }
 
 func (s *customCacheStatement) execUpdate(args []driver.Value) (driver.Result, error) {
-	handleUpdateQuery(*s.queryInfo.Update, args)
+	cleanup := handleUpdateQuery(*s.queryInfo.Update, args)
+	s.conn.cleanUp.append(cleanup)
 	nvarsgs := valueToNamedValue(args)
 	return s.inner.(driver.StmtExecContext).ExecContext(context.Background(), nvarsgs)
 }
 
 func (s *customCacheStatement) execDelete(args []driver.Value) (driver.Result, error) {
-	handleDeleteQuery(*s.queryInfo.Delete, args)
+	cleanup := handleDeleteQuery(*s.queryInfo.Delete, args)
+	s.conn.cleanUp.append(cleanup)
 	nvargs := valueToNamedValue(args)
 	return s.inner.(driver.StmtExecContext).ExecContext(context.Background(), nvargs)
 }
@@ -67,6 +87,10 @@ func (s *customCacheStatement) execDelete(args []driver.Value) (driver.Result, e
 func (c *cacheConn) ExecContext(ctx context.Context, rawQuery string, nvargs []driver.NamedValue) (driver.Result, error) {
 	inner, ok := c.inner.(driver.ExecerContext)
 	if !ok {
+		return nil, driver.ErrSkip
+	}
+
+	if !c.config.InterpolateParams {
 		return nil, driver.ErrSkip
 	}
 
@@ -94,12 +118,9 @@ func (c *cacheConn) ExecContext(ctx context.Context, rawQuery string, nvargs []d
 
 	if !c.tx {
 		c.cleanUp.do()
-		c.cleanUp.reset()
 	} else {
 		// cleanups are deferred until the transaction is committed
 		// because we need to forget the cache only if the transaction is committed
-
-		// update the cache
 		for _, c := range c.cleanUp.purge {
 			c.updateTx()
 		}
@@ -151,7 +172,16 @@ func (s *customCacheStatement) Query(args []driver.Value) (driver.Rows, error) {
 		return s.inQuery(args)
 	}
 
-	rows, err := caches[cacheName(s.query)].Get(ctx, cacheKey(args))
+	cache := caches[cacheName(s.query)]
+	key := cacheKey(args)
+	if s.conn.tx && cache.isNewerThan(key, s.conn.txStart) {
+		// cache is newer than the transaction start time
+		// we should not use the cache
+		return s.inner.Query(args)
+	}
+
+	ctx = context.WithValue(ctx, cacheWithInfoKey{}, cache)
+	rows, err := cache.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -186,6 +216,7 @@ func (s *customCacheStatement) inQuery(args []driver.Value) (driver.Rows, error)
 		}
 		ctx := context.WithValue(context.Background(), stmtKey{}, stmt)
 		ctx = context.WithValue(ctx, argsKey{}, []driver.Value{condValue})
+		ctx = context.WithValue(ctx, cacheWithInfoKey{}, cache)
 		rows, err := cache.Get(ctx, cacheKey([]driver.Value{condValue}))
 		if err != nil {
 			return nil, err
@@ -199,6 +230,10 @@ func (s *customCacheStatement) inQuery(args []driver.Value) (driver.Rows, error)
 func (c *cacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []driver.NamedValue) (driver.Rows, error) {
 	inner, ok := c.inner.(driver.QueryerContext)
 	if !ok {
+		return nil, driver.ErrSkip
+	}
+
+	if !c.config.InterpolateParams {
 		return nil, driver.ErrSkip
 	}
 
@@ -232,10 +267,11 @@ func (c *cacheConn) QueryContext(ctx context.Context, rawQuery string, nvargs []
 		return inner.QueryContext(ctx, rawQuery, nvargs)
 	}
 
-	cachectx := context.WithValue(ctx, namedValueArgsKey{}, nvargs)
-	cachectx = context.WithValue(cachectx, queryerCtxKey{}, inner)
-	cachectx = context.WithValue(cachectx, queryKey{}, rawQuery)
-	rows, err := cache.Get(cachectx, key)
+	cacheCtx := context.WithValue(ctx, namedValueArgsKey{}, nvargs)
+	cacheCtx = context.WithValue(cacheCtx, queryerCtxKey{}, inner)
+	cacheCtx = context.WithValue(cacheCtx, queryKey{}, rawQuery)
+	cacheCtx = context.WithValue(cacheCtx, cacheWithInfoKey{}, cache)
+	rows, err := cache.Get(cacheCtx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -270,6 +306,7 @@ func (c *cacheConn) inQuery(ctx context.Context, query string, args []driver.Nam
 		cacheCtx := context.WithValue(ctx, queryKey{}, cache.query)
 		cacheCtx = context.WithValue(cacheCtx, queryerCtxKey{}, inner)
 		cacheCtx = context.WithValue(cacheCtx, namedValueArgsKey{}, nvargs)
+		cacheCtx = context.WithValue(cacheCtx, cacheWithInfoKey{}, cache)
 		rows, err := cache.Get(cacheCtx, cacheKey([]driver.Value{condValue.Value}))
 		if err != nil {
 			return nil, err
@@ -448,6 +485,7 @@ func (c *cleanUpTask) do() {
 	for _, forget := range c.forget {
 		forget.cache.Forget(forget.key)
 	}
+	c.reset()
 }
 
 func (c *cleanUpTask) append(tasks cleanUpTask) {
